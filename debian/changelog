@@ -1,3 +1,10 @@
+htop (0.5-2) unstable; urgency=low
+  
+  * watch file changed a little to handle weird upstream versions
+  * s/fenio@o2.pl/fenio@debian.org/
+
+ -- Bartosz Fenski <fenio@debian.org>  Thu,  7 Apr 2005 12:00:11 +0200
+ 
 htop (0.5-1) unstable; urgency=low
 
   * New upstream version.
