@@ -1,3 +1,9 @@
+htop (0.5.2-1) unstable; urgency=low
+
+  * New upstream bugfix release. 
+
+ -- Bartosz Fenski <fenio@debian.org>  Wed,  8 Jun 2005 20:02:19 +0200
+
 htop (0.5.1-1) unstable; urgency=low
 
   * New upstream version.
