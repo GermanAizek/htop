@@ -9,7 +9,7 @@ in the source distribution for its full text.
 #include "CRT.h"
 #include "ListBox.h"
 #include "UsersTable.h"
-#include "Signal.h"
+#include "SignalItem.h"
 #include "RichString.h"
 #include "Settings.h"
 #include "ScreenManager.h"

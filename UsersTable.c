@@ -18,12 +18,6 @@ in the source distribution for its full text.
 #include <assert.h>
 
 /*{
-#ifndef SYSCONFDIR
-#define SYSCONFDIR "/etc"
-#endif
-}*/
-
-/*{
 typedef struct UsersTable_ {
    Hashtable* users;
 } UsersTable;

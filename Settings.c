@@ -26,13 +26,20 @@ Settings* Settings_new(ProcessList* pl, Header* header) {
    Settings* this = malloc(sizeof(Settings));
    this->pl = pl;
    this->header = header;
-   // TODO: how to get SYSCONFDIR correctly through Autoconf?
-   // char* systemSettings = String_cat(SYSCONFDIR, "/htoprc");
-   // Settings_read(this, systemSettings);
-   char* home = getenv("HOME");
+   char* home;
+   home = getenv("HOME_ETC");
+   if (!home) home = getenv("HOME");
    this->userSettings = String_cat(home, "/.htoprc");
-   Settings_read(this, this->userSettings);
-   // free(systemSettings);
+   bool ok = Settings_read(this, this->userSettings);
+   if (!ok) {
+      // TODO: how to get SYSCONFDIR correctly through Autoconf?
+      char* systemSettings = String_cat(SYSCONFDIR, "/htoprc");
+      ok = Settings_read(this, systemSettings);
+      free(systemSettings);
+      if (!ok) {
+         Header_defaultMeters(this->header);
+      }
+   }
    return this;
 }
 
@@ -72,7 +79,6 @@ bool Settings_read(Settings* this, char* fileName) {
    FILE* fd;
    fd = fopen(fileName, "r");
    if (fd == NULL) {
-      Header_defaultMeters(this->header);
       return false;
    }
    const int maxLine = 512;
@@ -176,8 +182,10 @@ bool Settings_write(Settings* this) {
    fprintf(fd, "tree_view=%d\n", (int) this->pl->treeView);
    fprintf(fd, "header_margin=%d\n", (int) this->header->margin);
    fprintf(fd, "left_meters=");
-   for (int i = 0; i < Header_size(this->header, LEFT_HEADER); i++)
+   for (int i = 0; i < Header_size(this->header, LEFT_HEADER); i++) {
+fprintf(stderr, "Field #%d\n", i);
       fprintf(fd, "%s ", Header_readMeterName(this->header, i, LEFT_HEADER));
+   }
    fprintf(fd, "\n");
    fprintf(fd, "left_meter_modes=");
    for (int i = 0; i < Header_size(this->header, LEFT_HEADER); i++)

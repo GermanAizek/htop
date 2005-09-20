@@ -36,6 +36,8 @@ typedef struct Header_ {
 
 }*/
 
+#define MAX(a,b) ((a)>(b)?(a):(b))
+
 Header* Header_new(ProcessList* pl) {
    Header* this = malloc(sizeof(Header));
    this->leftMeters = TypedVector_new(METER_CLASS, true, DEFAULT_SIZE);
