@@ -1,6 +1,6 @@
 /*
-htop
-(C) 2004 Hisham H. Muhammad
+htop - Meter.c
+(C) 2004,2005 Hisham H. Muhammad
 Released under the GNU GPL, see the COPYING file
 in the source distribution for its full text.
 */
@@ -46,7 +46,7 @@ struct Meter_ {
    Method_Meter_draw draw;
    Method_Meter_setValues setValues;
    int items;
-   int* attributes;
+   int** attributes;
    double* values;
    double total;
    char* caption;
@@ -92,7 +92,7 @@ void Meter_init(Meter* this, char* name, char* caption, int items) {
    this->items = items;
    this->name = name;
    this->caption = caption;
-   this->attributes = malloc(sizeof(int) * items);
+   this->attributes = malloc(sizeof(int*) * items);
    this->values = malloc(sizeof(double) * items);
    this->displayBuffer.c = NULL;
    this->mode = UNSET;
@@ -179,10 +179,10 @@ void Meter_drawBar(Meter* this, int x, int y, int w) {
       nextOffset = MIN(nextOffset, w);
       for (int j = offset; j < nextOffset; j++)
          if (bar[j] == ' ') {
-            if (CRT_hasColors) {
-               bar[j] = '|';
-            } else {
+            if (CRT_colorScheme == COLORSCHEME_MONOCHROME) {
                bar[j] = Meter_barCharacters[i];
+            } else {
+               bar[j] = '|';
             }
          }
       offset = nextOffset;
@@ -192,7 +192,7 @@ void Meter_drawBar(Meter* this, int x, int y, int w) {
    // ...then print the buffer.
    offset = 0;
    for (int i = 0; i < this->items; i++) {
-      attrset(this->attributes[i]);
+      attrset(*(this->attributes[i]));
       mvaddnstr(y, x + offset, bar + offset, blockSizes[i]);
       offset += blockSizes[i];
       offset = MAX(offset, 0);

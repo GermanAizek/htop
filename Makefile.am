@@ -18,4 +18,5 @@ DisplayOptionsListBox.h FunctionBar.h Hashtable.h Header.h htop.h ListBox.h \
 ListItem.h LoadAverageMeter.h LoadMeter.h MemoryMeter.h Meter.h \
 MetersListBox.h Object.h Process.h ProcessList.h RichString.h ScreenManager.h \
 Settings.h SignalItem.h SignalsListBox.h String.h SwapMeter.h TasksMeter.h \
-TypedVector.h UptimeMeter.h UsersTable.h CheckItem.c CheckItem.h
+TypedVector.h UptimeMeter.h UsersTable.h CheckItem.c CheckItem.h \
+ColorsListBox.c ColorsListBox.h

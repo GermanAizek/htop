@@ -1,3 +1,10 @@
+htop (0.5.4-1) unstable; urgency=low
+
+  * New upstream version.
+    - does not leave cruft on console on exit. (Closes: #334657) 
+
+ -- Bartosz Fenski <fenio@debian.org>  Fri,  4 Nov 2005 17:25:27 +0100
+
 htop (0.5.3-1) unstable; urgency=low
 
   * New upstream version. 
