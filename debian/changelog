@@ -1,3 +1,40 @@
+htop (0.8.1-1) experimental; urgency=low
+
+  * New maintainer. Thanks for work, Bartosz Fenski!
+  * New upstream release:
+    - Changes in 0.8.1 (Closes: #499928):
+      - Linux-VServer support.
+      - Battery meter (Closes: #484771).
+      - Fixed collection of IO stats in multithreaded processes.
+      - Removed assertion that fails on hardened kernels.
+    - Changes in 0.8.0 (Closes: #494646, #486213):
+      - Ability to change sort column with the mouse by
+        clicking column titles.
+      - Added support for Linux per-process IO statistics.
+      - Added Unicode support.
+      - Fixed display of CPU count for threaded processes.
+      - Avoid crashing when using many meters.
+    - Other fixes:
+      - Significantly increased line length limit (to 65535).
+        (Closes: #470280)
+  * debian/control:
+    - Bumped 'Standards-Version' to 3.8.0, no changes needed.
+    - Changed Build-Depends on debhelper to (>= 7) and 'libncurses5-dev' ->
+      'libncursesw5-dev'. Added dependency on quilt (>= 0.40).
+  * debian/rules:
+    - Some cleanup, used debhelper v7 commands.
+    - Pass '--enable-taskstats' and '--enable-unicode' options to configure.
+    - Pass '--enable-openvz' to configure. (Closes: #480541)
+  * debian/patches:
+    - New 010-make-desktop-file-valid.patch: makes desktop file valid.
+      Thanks to Nathan Handler <nathan.handler@gmail.com> (Closes: #488912)
+  * debian/copyright:
+    - Fixed path for GPLv2 license.
+  * debian/menu:
+    - Set proper section, removed hint (now useless).
+
+ -- Eugene V. Lyubimkin <jackyf.devel@gmail.com>  Sun, 16 Nov 2008 20:36:18 +0200
+
 htop (0.7-1) unstable; urgency=low
 
   * New upstrem version. (Closes: #452634)
