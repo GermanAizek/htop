@@ -1,3 +1,18 @@
+htop (0.8.1-2) experimental; urgency=low
+
+  * Disabled unicode support, it has both build and work problems yet.
+    (Closes: #507423)
+  * debian/patches:
+    - New patch 200-filter-non-printable-characters.patch to filter
+      non-printable characters in process names. Thanks to Josh Triplett
+      and Andrew O. Shadoura. (Closes: #504144)
+    - 010-make-desktop-file-valid.patch: comment added.
+  * debian/control:
+    - Added '${misc:Depends}' to 'Depends', fixes lintian warning.
+    - Added 'python-minimal' to 'Build-Depends' for MakeHeader.py.
+
+ -- Eugene V. Lyubimkin <jackyf.devel@gmail.com>  Sat, 06 Dec 2008 11:03:18 +0200
+
 htop (0.8.1-1) experimental; urgency=low
 
   * New maintainer. Thanks for work, Bartosz Fenski!

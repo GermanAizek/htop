@@ -2,13 +2,13 @@ Source: htop
 Section: utils
 Priority: optional
 Maintainer: Eugene V. Lyubimkin <jackyf.devel@gmail.com>
-Build-Depends: debhelper (>= 7), libncursesw5-dev, autotools-dev, quilt (>= 0.40)
+Build-Depends: debhelper (>= 7), libncurses5-dev, autotools-dev, quilt (>= 0.40), python-minimal
 Standards-Version: 3.8.0
 Homepage: http://htop.sourceforge.net
 
 Package: htop
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: interactive processes viewer
  Htop is an ncursed-based process viewer similar to top, but it 
  allows to scroll the list vertically and horizontally to see
