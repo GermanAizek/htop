@@ -14,7 +14,6 @@ in the source distribution for its full text.
 #include <curses.h>
 #include <string.h>
 #include <math.h>
-#include <sys/param.h>
 
 #include "debug.h"
 #include <assert.h>
@@ -30,6 +29,13 @@ struct CPUMeter_ {
 };
 
 }*/
+
+#ifndef MIN
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#endif
+#ifndef MAX
+#define MAX(a,b) ((a)>(b)?(a):(b))
+#endif
 
 CPUMeter* CPUMeter_new(ProcessList* pl, int processor) {
    CPUMeter* this = malloc(sizeof(CPUMeter));

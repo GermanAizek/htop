@@ -65,10 +65,10 @@ am_htop_OBJECTS = AvailableMetersListBox.$(OBJEXT) \
 	MemoryMeter.$(OBJEXT) Meter.$(OBJEXT) MetersListBox.$(OBJEXT) \
 	Object.$(OBJEXT) Process.$(OBJEXT) ProcessList.$(OBJEXT) \
 	RichString.$(OBJEXT) ScreenManager.$(OBJEXT) \
-	Settings.$(OBJEXT) Signal.$(OBJEXT) SignalsListBox.$(OBJEXT) \
-	String.$(OBJEXT) SwapMeter.$(OBJEXT) TasksMeter.$(OBJEXT) \
-	TypedVector.$(OBJEXT) UptimeMeter.$(OBJEXT) \
-	UsersTable.$(OBJEXT) CheckItem.$(OBJEXT)
+	Settings.$(OBJEXT) SignalItem.$(OBJEXT) \
+	SignalsListBox.$(OBJEXT) String.$(OBJEXT) SwapMeter.$(OBJEXT) \
+	TasksMeter.$(OBJEXT) TypedVector.$(OBJEXT) \
+	UptimeMeter.$(OBJEXT) UsersTable.$(OBJEXT) CheckItem.$(OBJEXT)
 htop_OBJECTS = $(am_htop_OBJECTS)
 htop_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I.
@@ -170,18 +170,19 @@ target_alias = @target_alias@
 dist_man_MANS = htop.1
 EXTRA_DIST = $(dist_man_MANS)
 AM_CFLAGS = -pedantic -Wall -std=c99
+AM_CPPFLAGS = -DSYSCONFDIR=\"$(sysconfdir)\"
 htop_SOURCES = AvailableMetersListBox.c CategoriesListBox.c ClockMeter.c \
 CPUMeter.c CRT.c DebugMemory.c DisplayOptionsListBox.c FunctionBar.c \
 Hashtable.c Header.c htop.c ListBox.c ListItem.c LoadAverageMeter.c \
 LoadMeter.c MemoryMeter.c Meter.c MetersListBox.c Object.c Process.c \
-ProcessList.c RichString.c ScreenManager.c Settings.c Signal.c \
+ProcessList.c RichString.c ScreenManager.c Settings.c SignalItem.c \
 SignalsListBox.c String.c SwapMeter.c TasksMeter.c TypedVector.c \
 UptimeMeter.c UsersTable.c AvailableMetersListBox.h CategoriesListBox.h \
 ClockMeter.h config.h CPUMeter.h CRT.h debug.h DebugMemory.h \
 DisplayOptionsListBox.h FunctionBar.h Hashtable.h Header.h htop.h ListBox.h \
 ListItem.h LoadAverageMeter.h LoadMeter.h MemoryMeter.h Meter.h \
 MetersListBox.h Object.h Process.h ProcessList.h RichString.h ScreenManager.h \
-Settings.h Signal.h SignalsListBox.h String.h SwapMeter.h TasksMeter.h \
+Settings.h SignalItem.h SignalsListBox.h String.h SwapMeter.h TasksMeter.h \
 TypedVector.h UptimeMeter.h UsersTable.h CheckItem.c CheckItem.h
 
 all: config.h
@@ -296,7 +297,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/RichString.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ScreenManager.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Settings.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Signal.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/SignalItem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/SignalsListBox.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/String.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/SwapMeter.Po@am__quote@

@@ -15,7 +15,6 @@ in the source distribution for its full text.
 #include <curses.h>
 #include <string.h>
 #include <math.h>
-#include <sys/param.h>
 
 #include "debug.h"
 #include <assert.h>
@@ -63,6 +62,10 @@ struct Meter_ {
 extern char* METER_CLASS;
 
 }*/
+
+#ifndef MIN
+#define MIN(a,b) ((a)<(b)?(a):(b))
+#endif
 
 /* private property */
 char* METER_CLASS = "Meter";
