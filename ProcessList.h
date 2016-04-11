@@ -39,6 +39,9 @@ in the source distribution for its full text.
 #define PROCMEMINFOFILE "/proc/meminfo"
 #endif
 
+#ifndef MAX_NAME
+#define MAX_NAME 128
+#endif
 
 typedef struct ProcessList_ {
    TypedVector* processes;

@@ -36,6 +36,11 @@ in the source distribution for its full text.
 #ifndef PROCMEMINFOFILE
 #define PROCMEMINFOFILE "/proc/meminfo"
 #endif
+
+#ifndef MAX_NAME
+#define MAX_NAME 128;
+#endif
+
 }*/
 
 /*{
@@ -345,6 +350,43 @@ int ProcessList_readStatFile(Process *proc, FILE *f, char *command) {
    return 1;
 }
 
+bool ProcessList_readStatusFile(Process* proc, char* dirname, char* name) {
+   char statusfilename[MAX_NAME+1];
+   statusfilename[MAX_NAME] = '\0';
+   snprintf(statusfilename, MAX_NAME, "%s/%s/status", dirname, name);
+   FILE* status = fopen(statusfilename, "r");
+   bool success = false;
+   if (status) {
+      char buffer[1024];
+      buffer[1023] = '\0';
+      while (!feof(status)) {
+         char* ok = fgets(buffer, 1023, status);
+         if (!ok)
+            break;
+         if (String_startsWith(buffer, "Uid:")) {
+            int uid1, uid2, uid3, uid4;
+            // TODO: handle other uid's.
+            int ok = sscanf(buffer, "Uid:\t%d\t%d\t%d\t%d\n", &uid1, &uid2, &uid3, &uid4);
+            if (ok >= 1) {
+               proc->st_uid = uid1;
+               success = true;
+            }
+            break;
+         }
+      }
+      fclose(status);
+   }
+   if (!success) {
+      snprintf(statusfilename, MAX_NAME, "%s/%s/stat", dirname, name);
+      struct stat sstat;
+      int statok = stat(statusfilename, &sstat);
+      if (statok == -1)
+         return false;
+      proc->st_uid = sstat.st_uid;
+   }
+   return success;
+}
+
 void ProcessList_processEntries(ProcessList* this, char* dirname, int parent, float period) {
    DIR* dir;
    struct dirent* entry;
@@ -369,7 +411,6 @@ void ProcessList_processEntries(ProcessList* this, char* dirname, int parent, fl
       }
 
       if (pid > 0 && pid != parent) {
-         const int MAX_NAME = 128;
          if (!this->hideUserlandThreads) {
             char subdirname[MAX_NAME+1];
             snprintf(subdirname, MAX_NAME, "%s/%s/task", dirname, name);
@@ -389,27 +430,23 @@ void ProcessList_processEntries(ProcessList* this, char* dirname, int parent, fl
             process = Process_clone(prototype);
             process->pid = pid;
             ProcessList_add(this, process);
+            if (! ProcessList_readStatusFile(process, dirname, name))
+               goto errorReadingProcess;
          } else {
             process = existingProcess;
          }
          process->updated = true;
 
-         struct stat sstat;
-         snprintf(statusfilename, MAX_NAME, "%s/%s/stat", dirname, name);
-         int statok = stat(statusfilename, &sstat);
-         if (statok == -1)
-            goto errorReadingProcess;
-         
-         char* username = UsersTable_getRef(this->usersTable, sstat.st_uid);
+         char* username = UsersTable_getRef(this->usersTable, process->st_uid);
          if (username) {
             strncpy(process->user, username, PROCESS_USER_LEN);
          } else {
-            snprintf(process->user, PROCESS_USER_LEN, "%d", sstat.st_uid);
+            snprintf(process->user, PROCESS_USER_LEN, "%d", process->st_uid);
          }
-         process->st_uid = sstat.st_uid;
 
          int lasttimes = (process->utime + process->stime);
 
+         snprintf(statusfilename, MAX_NAME, "%s/%s/stat", dirname, name);
          status = fopen(statusfilename, "r");
          if (status == NULL) 
             goto errorReadingProcess;
