@@ -3,8 +3,8 @@
 #ifndef HEADER_Process
 #define HEADER_Process
 /*
-htop
-(C) 2004 Hisham H. Muhammad
+htop - Process.h
+(C) 2004,2005 Hisham H. Muhammad
 Released under the GNU GPL, see the COPYING file
 in the source distribution for its full text.
 */

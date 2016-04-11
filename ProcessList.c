@@ -1,6 +1,6 @@
 /*
-htop
-(C) 2004 Hisham H. Muhammad
+htop - ProcessList.c
+(C) 2004,2005 Hisham H. Muhammad
 Released under the GNU GPL, see the COPYING file
 in the source distribution for its full text.
 */
@@ -541,14 +541,18 @@ void ProcessList_scan(ProcessList* this) {
    status = fopen(PROCSTATFILE, "r");
    assert(status != NULL);
    for (int i = 0; i <= this->processorCount; i++) {
+      char buffer[256];
       int cpuid;
-      int fieldsread;
       long int ioWait, irq, softIrq, steal;
       ioWait = irq = softIrq = steal = 0;
+      // Dependending on your kernel version,
+      // 5, 7 or 8 of these fields will be set.
+      // The rest will remain at zero.
+      fgets(buffer, 255, status);
       if (i == 0)
-         fieldsread = fscanf(status, "cpu  %ld %ld %ld %ld %ld %ld %ld\n", &usertime, &nicetime, &systemtime, &idletime, &ioWait, &irq, &softIrq, &steal);
+         sscanf(buffer, "cpu  %ld %ld %ld %ld %ld %ld %ld %ld\n", &usertime, &nicetime, &systemtime, &idletime, &ioWait, &irq, &softIrq, &steal);
       else {
-         fieldsread = fscanf(status, "cpu%d %ld %ld %ld %ld %ld %ld %ld\n", &cpuid, &usertime, &nicetime, &systemtime, &idletime, &ioWait, &irq, &softIrq, &steal);
+         sscanf(buffer, "cpu%d %ld %ld %ld %ld %ld %ld %ld %ld\n", &cpuid, &usertime, &nicetime, &systemtime, &idletime, &ioWait, &irq, &softIrq, &steal);
          assert(cpuid == i - 1);
       }
       // Fields existing on kernels >= 2.6
