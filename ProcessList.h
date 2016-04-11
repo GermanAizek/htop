@@ -83,6 +83,7 @@ typedef struct ProcessList_ {
    bool hideThreads;
    bool shadowOtherUsers;
    bool hideKernelThreads;
+   bool hideUserlandThreads;
    bool treeView;
    bool highlightBaseName;
    bool highlightMegabytes;

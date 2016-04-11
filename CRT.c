@@ -92,9 +92,14 @@ typedef enum ColorElements_ {
    LAST_COLORELEMENT
 } ColorElements;
 
+extern int CRT_delay;
+
 extern int CRT_colors[LAST_COLORELEMENT];
 
 }*/
+
+/* private property */
+int CRT_delay; 
 
 /* private property */
 int CRT_colors[LAST_COLORELEMENT];
@@ -254,7 +259,7 @@ int CRT_readKey() {
    nocbreak();
    cbreak();
    int ret = getch();
-   halfdelay(MIN_UPDATE_SLICE);
+   halfdelay(CRT_delay);
    return ret;
 }
 
