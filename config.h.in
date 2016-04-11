@@ -46,14 +46,14 @@
 /* The library is present. */
 #undef HAVE_LIBNCURSESW
 
+/* Define if Linux sched_setaffinity and sched_getaffinity are to be used. */
+#undef HAVE_LINUX_AFFINITY
+
 /* Define to 1 if you have the `memmove' function. */
 #undef HAVE_MEMMOVE
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* Define if native sched_setaffinity and sched_getaffinity are to be used. */
-#undef HAVE_NATIVE_AFFINITY
 
 /* Define to 1 if you have the <ncursesw/curses.h> header file. */
 #undef HAVE_NCURSESW_CURSES_H
