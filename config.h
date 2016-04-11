@@ -47,14 +47,14 @@
 /* The library is present. */
 #define HAVE_LIBNCURSESW 1
 
+/* Define if Linux sched_setaffinity and sched_getaffinity are to be used. */
+#define HAVE_LINUX_AFFINITY 1
+
 /* Define to 1 if you have the `memmove' function. */
 #define HAVE_MEMMOVE 1
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
-
-/* Define if native sched_setaffinity and sched_getaffinity are to be used. */
-#define HAVE_NATIVE_AFFINITY 1
 
 /* Define to 1 if you have the <ncursesw/curses.h> header file. */
 #define HAVE_NCURSESW_CURSES_H 1
@@ -155,7 +155,7 @@
 #define PACKAGE_NAME "htop"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "htop 2.0.0"
+#define PACKAGE_STRING "htop 2.0.1"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "htop"
@@ -164,7 +164,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2.0.0"
+#define PACKAGE_VERSION "2.0.1"
 
 /* Path of proc filesystem */
 #define PROCDIR "/proc"
@@ -198,7 +198,7 @@
 
 
 /* Version number of package */
-#define VERSION "2.0.0"
+#define VERSION "2.0.1"
 
 /* Define to 1 if on MINIX. */
 /* #undef _MINIX */
