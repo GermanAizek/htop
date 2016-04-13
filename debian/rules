@@ -8,6 +8,10 @@ include /usr/share/dpkg/buildflags.mk
 	dh $@ --with autoreconf
 
 override_dh_auto_configure:
-	dh_auto_configure -- --enable-linux-affinity --enable-taskstats \
-		--enable-openvz --enable-vserver --enable-cgroup \
+	dh_auto_configure -- \
+		--enable-linux-affinity \
+		--enable-taskstats \
+		--enable-openvz \
+		--enable-vserver \
+		--enable-cgroup \
 		--enable-unicode
