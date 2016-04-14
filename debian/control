@@ -14,6 +14,8 @@ Build-Depends: debhelper (>= 9),
                python-minimal
 Standards-Version: 3.9.7
 Homepage: http://hisham.hm/htop/
+Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/htop.git
+Vcs-Git: https://anonscm.debian.org/git/collab-maint/htop.git
 
 Package: htop
 Architecture: any
