@@ -1,3 +1,4 @@
 001-lintian-warning-fix-man-typo.patch
 002-lintian-warning-fix-desktop-keywords.patch
+003-use-source-date-epoch.patch
 601-openvz-new-ctid-vpid.patch
