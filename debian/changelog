@@ -1,13 +1,13 @@
-htop (2.0.1-2) UNRELEASED; urgency=medium
+htop (2.0.2-1) UNRELEASED; urgency=medium
 
-  [ Graham Inggs ]
-  * Use SOURCE_DATE_EPOCH instead of current year in copyright message.
-
-  [ Daniel Lange ]
-  * Fix build to detect the Hurd as a Linux platform. (Closes: #821747)
+  * Update to upstream version 2.0.2
+    - Use SOURCE_DATE_EPOCH instead of current year in copyright message
+      to make build reproducible. (Closes: #822963)
+    - Fix build to detect the Hurd as a Linux platform. (Closes: #821747)
+    - Fix crash when setting CPU affinity and -fPIE. (LP: #1589549)
   * Bump Standards to 3.9.8 (no changes required)
 
- -- Graham Inggs <ginggs@debian.org>  Fri, 15 Apr 2016 18:16:59 +0200
+ -- Daniel Lange <dl.ml1@usrlocal.de>  Mon, 25 Jul 2016 18:39:58 +0200
 
 htop (2.0.1-1) unstable; urgency=medium
 
