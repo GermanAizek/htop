@@ -11,7 +11,7 @@ Build-Depends: debhelper (>= 9),
                libkvm-dev [kfreebsd-any],
                libncurses5-dev,
                libncursesw5-dev,
-               python-minimal
+               python-minimal:native
 Standards-Version: 3.9.8
 Homepage: http://hisham.hm/htop/
 Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/htop.git
