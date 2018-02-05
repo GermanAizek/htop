@@ -1,4 +1,4 @@
-htop (2.1.0-1) UNRELEASED; urgency=medium
+htop (2.1.0-1) unstable; urgency=medium
 
   [ Graham Inggs ]
   * New upstream release 2.1.0 (Closes: #889634)
@@ -14,7 +14,7 @@ htop (2.1.0-1) UNRELEASED; urgency=medium
   * Fix FTCBFS: Annotate python-minimal build dependency with :native.
     (Closes: #864672)
 
- -- Graham Inggs <ginggs@debian.org>  Mon, 05 Feb 2018 12:49:03 +0000
+ -- Graham Inggs <ginggs@debian.org>  Mon, 05 Feb 2018 13:22:25 +0000
 
 htop (2.0.2-1) unstable; urgency=medium
 
