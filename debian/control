@@ -12,7 +12,7 @@ Build-Depends: debhelper (>= 11),
                libncursesw5-dev,
                python-minimal:native
 Standards-Version: 3.9.8
-Homepage: http://hisham.hm/htop/
+Homepage: https://hisham.hm/htop/
 Vcs-Browser: https://salsa.debian.org/debian/htop
 Vcs-Git: https://salsa.debian.org/debian/htop.git
 
