@@ -8,6 +8,7 @@ htop (2.1.0-1) UNRELEASED; urgency=medium
   * Update debian/copyright
   * Remove trailing whitespace from debian/changelog
   * Use secure URI in Homepage and debian/watch
+  * Bump Standards-Version to 3.1.4, no changes
 
   [ Helmut Grohne ]
   * Fix FTCBFS: Annotate python-minimal build dependency with :native.
