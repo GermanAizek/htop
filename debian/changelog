@@ -3,6 +3,7 @@ htop (2.1.0-1) UNRELEASED; urgency=medium
   [ Graham Inggs ]
   * New upstream release 2.1.0 (Closes: #889634)
   * Refresh debian/patches/601-openvz-new-ctid-vpid.patch
+  * Update Vcs-* URIs for move to salsa.debian.org
 
   [ Helmut Grohne ]
   * Fix FTCBFS: Annotate python-minimal build dependency with :native.

@@ -14,8 +14,8 @@ Build-Depends: debhelper (>= 9),
                python-minimal:native
 Standards-Version: 3.9.8
 Homepage: http://hisham.hm/htop/
-Vcs-Browser: https://anonscm.debian.org/cgit/collab-maint/htop.git
-Vcs-Git: https://anonscm.debian.org/git/collab-maint/htop.git
+Vcs-Browser: https://salsa.debian.org/debian/htop
+Vcs-Git: https://salsa.debian.org/debian/htop.git
 
 Package: htop
 Architecture: any
