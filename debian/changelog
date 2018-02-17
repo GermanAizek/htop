@@ -1,4 +1,4 @@
-htop (2.1.0-3) UNRELEASED; urgency=medium
+htop (2.1.0-3) unstable; urgency=medium
 
   * Fix case of dyscalculia in changelog entry for 2.1.0-1
   * Update Daniel Lange's email address
@@ -8,7 +8,7 @@ htop (2.1.0-3) UNRELEASED; urgency=medium
   * Fix preservation of LDFLAGS value during configure script
   * Handle unexpected values for character passed to isalnum
 
- -- Graham Inggs <ginggs@debian.org>  Mon, 05 Feb 2018 18:07:57 +0000
+ -- Graham Inggs <ginggs@debian.org>  Sat, 17 Feb 2018 18:27:46 +0000
 
 htop (2.1.0-2) unstable; urgency=medium
 
