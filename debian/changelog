@@ -6,6 +6,7 @@ htop (2.1.0-3) UNRELEASED; urgency=medium
   * Refresh debian/patches/601-openvz-new-ctid-vpid.patch
   * Fix issue with small terminals (Closes: #889693)
   * Fix preservation of LDFLAGS value during configure script
+  * Handle unexpected values for character passed to isalnum
 
  -- Graham Inggs <ginggs@debian.org>  Mon, 05 Feb 2018 18:07:57 +0000
 
