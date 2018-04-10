@@ -1,3 +1,10 @@
+htop (2.2.0-1) UNRELEASED; urgency=medium
+
+  * New upstream release 2.2.0
+  * update uscan to v4 and add gpg verification of upstream tarball
+
+ -- Daniel Lange <DLange@debian.org>  Wed, 11 Apr 2018 01:46:14 +0200
+
 htop (2.1.0-3) unstable; urgency=medium
 
   * Fix case of dyscalculia in changelog entry for 2.1.0-1
