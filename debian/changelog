@@ -1,4 +1,4 @@
-htop (2.2.0-1) UNRELEASED; urgency=medium
+htop (2.2.0-1) unstable; urgency=medium
 
   * New upstream release 2.2.0
   * Update uscan to v4 and add gpg verification of upstream tarball
@@ -9,7 +9,7 @@ htop (2.2.0-1) UNRELEASED; urgency=medium
   * Fix compile issue with regenerated header files (patch)
   * Update policy to 4.1.4 (no changes required)
 
- -- Daniel Lange <DLange@debian.org>  Wed, 11 Apr 2018 01:46:14 +0200
+ -- Daniel Lange <DLange@debian.org>  Thu, 26 Apr 2018 21:10:00 +0200
 
 htop (2.1.0-3) unstable; urgency=medium
 
