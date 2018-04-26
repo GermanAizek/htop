@@ -1,12 +1,13 @@
 htop (2.2.0-1) UNRELEASED; urgency=medium
 
   * New upstream release 2.2.0
-  * update uscan to v4 and add gpg verification of upstream tarball
-  * drop patches that were merged upstream
-  * remove OpenVZ patch that wasn't merged upstream
+  * Update uscan to v4 and add gpg verification of upstream tarball
+  * Drop patches that were merged upstream
+  * Remove OpenVZ patch that wasn't merged upstream
     (for now, upstream issue 464)
-  * add upstream issue 780 patch
-  * fix compile issue with regenerated header files (patch)
+  * Add upstream issue 780 patch
+  * Fix compile issue with regenerated header files (patch)
+  * Update policy to 4.1.4 (no changes required)
 
  -- Daniel Lange <DLange@debian.org>  Wed, 11 Apr 2018 01:46:14 +0200
 
