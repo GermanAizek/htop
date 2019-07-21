@@ -3,6 +3,7 @@ htop (2.2.0-2) UNRELEASED; urgency=medium
   * Switch to debhelper 12
   * Set Rules-Requires-Root: no
   * Run MakeHeader.py in Python 3
+  * Drop trailing whitespace in debian/changelog
 
  -- Graham Inggs <ginggs@debian.org>  Sun, 21 Jul 2019 22:38:38 +0000
 
@@ -537,4 +538,3 @@ htop (0.2-1) unstable; urgency=low
   * Initial Release.
 
  -- Bartosz Fenski <fenio@o2.pl>  Fri, 14 May 2004 10:37:04 +0200
-
