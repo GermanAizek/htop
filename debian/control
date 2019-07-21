@@ -11,7 +11,7 @@ Build-Depends: debhelper-compat (= 12),
                libncurses5-dev,
                libncursesw5-dev,
                pkg-config,
-               python-minimal:native
+               python3-minimal:native
 Standards-Version: 4.1.4
 Rules-Requires-Root: no
 Homepage: https://hisham.hm/htop/
