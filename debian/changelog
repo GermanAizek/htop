@@ -1,3 +1,9 @@
+htop (2.2.0-2) UNRELEASED; urgency=medium
+
+  * Switch to debhelper 12
+
+ -- Graham Inggs <ginggs@debian.org>  Sun, 21 Jul 2019 22:38:38 +0000
+
 htop (2.2.0-1) unstable; urgency=medium
 
   * New upstream release 2.2.0
