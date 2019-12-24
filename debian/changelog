@@ -2,6 +2,7 @@ htop (2.2.0-3) UNRELEASED; urgency=medium
 
   * Set upstream metadata fields: Bug-Database, Repository, Repository-
     Browse.
+  * Update standards version to 4.4.1, no changes needed.
 
  -- Debian Janitor <janitor@jelmer.uk>  Tue, 24 Dec 2019 20:00:59 +0000
 
