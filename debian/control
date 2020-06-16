@@ -12,7 +12,7 @@ Build-Depends: debhelper-compat (= 12),
                libncursesw5-dev,
                pkg-config,
                python3-minimal:native
-Standards-Version: 4.4.0
+Standards-Version: 4.5.0
 Rules-Requires-Root: no
 Homepage: https://hisham.hm/htop/
 Vcs-Browser: https://salsa.debian.org/debian/htop
