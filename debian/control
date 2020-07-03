@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Daniel Lange <DLange@debian.org>
 Uploaders: Eugene V. Lyubimkin <jackyf@debian.org>,
            Graham Inggs <ginggs@debian.org>
-Build-Depends: debhelper-compat (= 12),
+Build-Depends: debhelper-compat (= 13),
                dpkg-dev (>= 1.16.1.1),
                libhwloc-dev [!linux-any],
                libkvm-dev [kfreebsd-any],
