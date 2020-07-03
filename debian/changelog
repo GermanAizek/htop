@@ -1,4 +1,4 @@
-htop (2.2.0-3) UNRELEASED; urgency=medium
+htop (2.2.0-3) unstable; urgency=medium
 
   [ Graham Inggs ]
   * Switch to debhelper 13
@@ -12,7 +12,7 @@ htop (2.2.0-3) UNRELEASED; urgency=medium
   * Set upstream metadata fields: Bug-Submit.
   * Update standards version to 4.5.0, no changes needed.
 
- -- Debian Janitor <janitor@jelmer.uk>  Tue, 24 Dec 2019 20:00:59 +0000
+ -- Graham Inggs <ginggs@debian.org>  Fri, 03 Jul 2020 09:29:55 +0000
 
 htop (2.2.0-2) unstable; urgency=medium
 
