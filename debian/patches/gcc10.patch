@@ -1,0 +1,35 @@
+Description: Avoid FTBFS with GCC 10
+ Initialize some pointers in CRT.c so that CRT.h is
+ generated with the appropriate 'extern' keywords
+Bug: https://github.com/hishamhm/htop/issues/986
+Bug-Debian: https://bugs.debian.org/957344
+Author: Graham Inggs <ginggs@debian.org>
+Last-Update: 2020-07-02
+
+--- a/CRT.c
++++ b/CRT.c
+@@ -171,7 +171,7 @@
+ 
+ int CRT_delay = 0;
+ 
+-int* CRT_colors;
++int* CRT_colors = NULL;
+ 
+ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
+    [COLORSCHEME_DEFAULT] = {
+@@ -537,13 +537,13 @@
+ 
+ int CRT_scrollWheelVAmount = 10;
+ 
+-char* CRT_termType;
++char* CRT_termType = NULL;
+ 
+ // TODO move color scheme to Settings, perhaps?
+ 
+ int CRT_colorScheme = 0;
+ 
+-void *backtraceArray[128];
++void *backtraceArray[128] = { NULL };
+ 
+ static void CRT_handleSIGTERM(int sgn) {
+    (void) sgn;

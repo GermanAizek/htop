@@ -1,3 +1,4 @@
 780-fix-option-string.patch
 fix-linux-process.patch
 python3.patch
+gcc10.patch
