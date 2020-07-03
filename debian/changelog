@@ -3,6 +3,7 @@ htop (2.2.0-3) UNRELEASED; urgency=medium
   [ Graham Inggs ]
   * Switch to debhelper 13
   * Avoid FTBFS with GCC 10 (Closes: #957344)
+  * Close pipe after lsof
 
   [ Debian Janitor ]
   * Set upstream metadata fields: Bug-Database, Repository, Repository-
