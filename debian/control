@@ -14,7 +14,7 @@ Build-Depends: debhelper-compat (= 13),
                python3-minimal:native
 Standards-Version: 4.5.0
 Rules-Requires-Root: no
-Homepage: https://hisham.hm/htop/
+Homepage: https://htop.dev/
 Vcs-Browser: https://salsa.debian.org/debian/htop
 Vcs-Git: https://salsa.debian.org/debian/htop.git
 
