@@ -34,16 +34,17 @@ static void printVersionFlag() {
          stdout);
    exit(0);
 }
- 
+
 static void printHelpFlag() {
    fputs("htop " VERSION " - " COPYRIGHT "\n"
          "Released under the GNU GPL.\n\n"
          "-C --no-color               Use a monochrome color scheme\n"
+         "-m --no-mouse               Disable the mouse\n"
          "-d --delay=DELAY            Set the delay between updates, in tenths of seconds\n"
          "-h --help                   Print this help screen\n"
          "-s --sort-key=COLUMN        Sort by COLUMN (try --sort-key=help for a list)\n"
          "-t --tree                   Show the tree view by default\n"
-         "-u --user=USERNAME          Show only processes of a given user\n"
+         "-u --user[=USERNAME]        Show only processes for a given user (or $USER)\n"
          "-p --pid=PID,[,PID,PID...]  Show only the given PIDs\n"
          "-v --version                Print version info\n"
          "\n"
@@ -62,6 +63,7 @@ typedef struct CommandLineSettings_ {
    int sortKey;
    int delay;
    bool useColors;
+   bool enableMouse;
    bool treeView;
 } CommandLineSettings;
 
@@ -73,6 +75,7 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
       .sortKey = 0,
       .delay = -1,
       .useColors = true,
+      .enableMouse = true,
       .treeView = false,
    };
 
@@ -82,18 +85,18 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
       {"version",  no_argument,         0, 'v'},
       {"delay",    required_argument,   0, 'd'},
       {"sort-key", required_argument,   0, 's'},
-      {"user",     required_argument,   0, 'u'},
+      {"user",     optional_argument,   0, 'u'},
       {"no-color", no_argument,         0, 'C'},
       {"no-colour",no_argument,         0, 'C'},
+      {"no-mouse", no_argument,         0, 'm'},
       {"tree",     no_argument,         0, 't'},
       {"pid",      required_argument,   0, 'p'},
-      {"io",       no_argument,         0, 'i'},
       {0,0,0,0}
    };
 
    int opt, opti=0;
    /* Parse arguments */
-   while ((opt = getopt_long(argc, argv, "hvCst::d:u:p:i", long_opts, &opti))) {
+   while ((opt = getopt_long(argc, argv, "hvmCs:td:u::p:", long_opts, &opti))) {
       if (opt == EOF) break;
       switch (opt) {
          case 'h':
@@ -113,6 +116,7 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
             flags.sortKey = ColumnsPanel_fieldNameToIndex(optarg);
             if (flags.sortKey == -1) {
                fprintf(stderr, "Error: invalid column \"%s\".\n", optarg);
+               exit(1);
             }
             break;
          case 'd':
@@ -121,15 +125,30 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
                if (flags.delay > 100) flags.delay = 100;
             } else {
                fprintf(stderr, "Error: invalid delay value \"%s\".\n", optarg);
+               exit(1);
             }
             break;
          case 'u':
+            if (!optarg && optind < argc && argv[optind] != NULL &&
+                (argv[optind][0] != '\0' && argv[optind][0] != '-')) {
+               optarg = argv[optind++];
+            }
+
+            if (!optarg) {
+               optarg = getenv("USER");
+               flags.userId = geteuid();
+            }
+
             if (!Action_setUserOnly(optarg, &(flags.userId))) {
                fprintf(stderr, "Error: invalid user \"%s\".\n", optarg);
+               exit(1);
             }
             break;
          case 'C':
             flags.useColors = false;
+            break;
+         case 'm':
+            flags.enableMouse = false;
             break;
          case 't':
             flags.treeView = true;
@@ -187,12 +206,12 @@ int main(int argc, char** argv) {
       exit(1);
    }
 #endif
-   
+
    Process_setupColumnWidths();
-   
+
    UsersTable* ut = UsersTable_new();
    ProcessList* pl = ProcessList_new(ut, flags.pidWhiteList, flags.userId);
-   
+
    Settings* settings = Settings_new(pl->cpuCount);
    pl->settings = settings;
 
@@ -202,18 +221,20 @@ int main(int argc, char** argv) {
 
    if (flags.delay != -1)
       settings->delay = flags.delay;
-   if (!flags.useColors) 
+   if (!flags.useColors)
       settings->colorScheme = COLORSCHEME_MONOCHROME;
+   if (!flags.enableMouse)
+      settings->enableMouse = false;
    if (flags.treeView)
       settings->treeView = true;
 
    CRT_init(settings->delay, settings->colorScheme);
-   
+
    MainPanel* panel = MainPanel_new();
    ProcessList_setPanel(pl, (Panel*) panel);
 
    MainPanel_updateTreeFunctions(panel, settings->treeView);
-      
+
    if (flags.sortKey > 0) {
       settings->sortKey = flags.sortKey;
       settings->treeView = false;
@@ -229,7 +250,7 @@ int main(int argc, char** argv) {
       .header = header,
    };
    MainPanel_setState(panel, &state);
-   
+
    ScreenManager* scr = ScreenManager_new(0, header->height, 0, -1, HORIZONTAL, header, settings, true);
    ScreenManager_add(scr, (Panel*) panel, -1);
 
@@ -237,13 +258,13 @@ int main(int argc, char** argv) {
    millisleep(75);
    ProcessList_scan(pl);
 
-   ScreenManager_run(scr, NULL, NULL);   
-   
+   ScreenManager_run(scr, NULL, NULL);
+
    attron(CRT_colors[RESET_COLOR]);
    mvhline(LINES-1, 0, ' ', COLS);
    attroff(CRT_colors[RESET_COLOR]);
    refresh();
-   
+
    CRT_done();
    if (settings->changed)
       Settings_write(settings);
@@ -251,10 +272,10 @@ int main(int argc, char** argv) {
    ProcessList_delete(pl);
 
    ScreenManager_delete(scr);
-   
+
    UsersTable_delete(ut);
    Settings_delete(settings);
-   
+
    if(flags.pidWhiteList) {
       Hashtable_delete(flags.pidWhiteList);
    }
