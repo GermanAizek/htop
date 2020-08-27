@@ -1,3 +1,11 @@
+htop (3.0.0-1) UNRELEASED; urgency=medium
+
+  * Switch upstream to htop-dev
+  * New upstream release 3.0.0
+  * Drop Debian patches merged upstream
+
+ -- Daniel Lange <DLange@debian.org>  Thu, 27 Aug 2020 07:49:33 +0200
+
 htop (2.2.0-3) unstable; urgency=medium
 
   [ Graham Inggs ]
