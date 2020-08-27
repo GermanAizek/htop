@@ -59,6 +59,19 @@ typedef enum TreeStr_ {
    TREE_STR_COUNT
 } TreeStr;
 
+typedef enum CheckStr_ {
+   CHECK_STR_NONE,
+   CHECK_STR_PARTIAL,
+   CHECK_STR_FULL,
+   CHECK_STR_COUNT
+} CheckStr;
+
+typedef enum CollapStr_ {
+   COLLAP_STR_OPEN,
+   COLLAP_STR_CLOSED,
+   COLLAP_STR_COUNT
+} CollapStr;
+
 typedef enum ColorSchemes_ {
    COLORSCHEME_DEFAULT = 0,
    COLORSCHEME_MONOCHROME = 1,
@@ -113,7 +126,6 @@ typedef enum ColorElements_ {
    LOAD_AVERAGE_FIFTEEN,
    LOAD_AVERAGE_FIVE,
    LOAD_AVERAGE_ONE,
-   CHECK_BOX,
    CHECK_MARK,
    CHECK_TEXT,
    CLOCK,
@@ -122,18 +134,28 @@ typedef enum ColorElements_ {
    CPU_NICE,
    CPU_NICE_TEXT,
    CPU_NORMAL,
-   CPU_KERNEL,
+   CPU_SYSTEM,
    CPU_IOWAIT,
    CPU_IRQ,
    CPU_SOFTIRQ,
    CPU_STEAL,
    CPU_GUEST,
+   PRESSURE_STALL_TEN,
+   PRESSURE_STALL_SIXTY,
+   PRESSURE_STALL_THREEHUNDRED,
+   ZFS_MFU,
+   ZFS_MRU,
+   ZFS_ANON,
+   ZFS_HEADER,
+   ZFS_OTHER,
+   ZFS_COMPRESSED,
+   ZFS_RATIO,
    LAST_COLORELEMENT
 } ColorElements;
 
-void CRT_fatalError(const char* note) __attribute__ ((noreturn));
+extern void CRT_fatalError(const char* note) __attribute__ ((noreturn));
 
-void CRT_handleSIGSEGV(int sgn);
+extern void CRT_handleSIGSEGV(int sgn);
 
 #define KEY_ALT(x) (KEY_F(64 - 26) + (x - 'A'))
 
@@ -149,6 +171,17 @@ const char *CRT_treeStrAscii[TREE_STR_COUNT] = {
    "-", // TREE_STR_SHUT
 };
 
+const char *CRT_checkStrAscii[CHECK_STR_COUNT] = {
+   "[ ]", // CHECK_STR_NONE
+   "[o]", // CHECK_STR_PARTIAL
+   "[x]", // CHECK_STR_FULL
+};
+
+const char *CRT_collapStrAscii[COLLAP_STR_COUNT] = {
+   "[-]", // COLLAP_STR_OPEN
+   "[+]", // COLLAP_STR_CLOSED
+};
+
 #ifdef HAVE_LIBNCURSESW
 
 const char *CRT_treeStrUtf8[TREE_STR_COUNT] = {
@@ -161,11 +194,26 @@ const char *CRT_treeStrUtf8[TREE_STR_COUNT] = {
    "\xe2\x94\x80", // TREE_STR_SHUT ─
 };
 
-bool CRT_utf8 = false;
+const char *CRT_checkStrUtf8[CHECK_STR_COUNT] = {
+   "\xe2\x98\x90", // CHECK_STR_NONE    ☐
+   "\xe2\x98\x92", // CHECK_STR_PARTIAL ☒
+   "\xe2\x98\x91", // CHECK_STR_FULL    ☑
+};
+
+const char *CRT_collapStrUtf8[COLLAP_STR_COUNT] = {
+   "\xe2\x8a\x9f", // COLLAP_STR_OPEN   ⊟
+   "\xe2\x8a\x9e", // COLLAP_STR_CLOSED ⊞
+};
 
 #endif
 
+bool CRT_utf8 = false;
+
 const char **CRT_treeStr = CRT_treeStrAscii;
+
+const char **CRT_checkStr = CRT_checkStrAscii;
+
+const char **CRT_collapStr = CRT_collapStrAscii;
 
 static bool CRT_hasColors;
 
@@ -219,19 +267,28 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [LOAD] = A_BOLD,
       [HELP_BOLD] = A_BOLD | ColorPair(Cyan,Black),
       [CLOCK] = A_BOLD,
-      [CHECK_BOX] = ColorPair(Cyan,Black),
-      [CHECK_MARK] = A_BOLD,
+      [CHECK_MARK] = A_BOLD | ColorPair(Cyan,Black),
       [CHECK_TEXT] = A_NORMAL,
       [HOSTNAME] = A_BOLD,
       [CPU_NICE] = ColorPair(Blue,Black),
       [CPU_NICE_TEXT] = A_BOLD | ColorPair(Blue,Black),
       [CPU_NORMAL] = ColorPair(Green,Black),
-      [CPU_KERNEL] = ColorPair(Red,Black),
-      [CPU_IOWAIT] = A_BOLD | ColorPair(Black, Black),
+      [CPU_SYSTEM] = ColorPair(Red,Black),
+      [CPU_IOWAIT] = A_BOLD | ColorPairGrayBlack,
       [CPU_IRQ] = ColorPair(Yellow,Black),
       [CPU_SOFTIRQ] = ColorPair(Magenta,Black),
       [CPU_STEAL] = ColorPair(Cyan,Black),
       [CPU_GUEST] = ColorPair(Cyan,Black),
+      [PRESSURE_STALL_THREEHUNDRED] = ColorPair(Cyan,Black),
+      [PRESSURE_STALL_SIXTY] = A_BOLD | ColorPair(Cyan,Black),
+      [PRESSURE_STALL_TEN] = A_BOLD | ColorPair(White,Black),
+      [ZFS_MFU] = ColorPair(Blue,Black),
+      [ZFS_MRU] = ColorPair(Yellow,Black),
+      [ZFS_ANON] = ColorPair(Magenta,Black),
+      [ZFS_HEADER] = ColorPair(Cyan,Black),
+      [ZFS_OTHER] = ColorPair(Magenta,Black),
+      [ZFS_COMPRESSED] = ColorPair(Blue,Black),
+      [ZFS_RATIO] = ColorPair(Magenta,Black),
    },
    [COLORSCHEME_MONOCHROME] = {
       [RESET_COLOR] = A_NORMAL,
@@ -278,19 +335,28 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [LOAD] = A_BOLD,
       [HELP_BOLD] = A_BOLD,
       [CLOCK] = A_BOLD,
-      [CHECK_BOX] = A_BOLD,
-      [CHECK_MARK] = A_NORMAL,
+      [CHECK_MARK] = A_BOLD,
       [CHECK_TEXT] = A_NORMAL,
       [HOSTNAME] = A_BOLD,
       [CPU_NICE] = A_NORMAL,
       [CPU_NICE_TEXT] = A_NORMAL,
       [CPU_NORMAL] = A_BOLD,
-      [CPU_KERNEL] = A_BOLD,
+      [CPU_SYSTEM] = A_BOLD,
       [CPU_IOWAIT] = A_NORMAL,
       [CPU_IRQ] = A_BOLD,
       [CPU_SOFTIRQ] = A_BOLD,
       [CPU_STEAL] = A_REVERSE,
       [CPU_GUEST] = A_REVERSE,
+      [PRESSURE_STALL_THREEHUNDRED] = A_DIM,
+      [PRESSURE_STALL_SIXTY] = A_NORMAL,
+      [PRESSURE_STALL_TEN] = A_BOLD,
+      [ZFS_MFU] = A_NORMAL,
+      [ZFS_MRU] = A_NORMAL,
+      [ZFS_ANON] = A_DIM,
+      [ZFS_HEADER] = A_BOLD,
+      [ZFS_OTHER] = A_DIM,
+      [ZFS_COMPRESSED] = A_BOLD,
+      [ZFS_RATIO] = A_BOLD,
    },
    [COLORSCHEME_BLACKONWHITE] = {
       [RESET_COLOR] = ColorPair(Black,White),
@@ -337,19 +403,28 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [LOAD] = ColorPair(Black,White),
       [HELP_BOLD] = ColorPair(Blue,White),
       [CLOCK] = ColorPair(Black,White),
-      [CHECK_BOX] = ColorPair(Blue,White),
       [CHECK_MARK] = ColorPair(Black,White),
       [CHECK_TEXT] = ColorPair(Black,White),
       [HOSTNAME] = ColorPair(Black,White),
       [CPU_NICE] = ColorPair(Cyan,White),
       [CPU_NICE_TEXT] = ColorPair(Cyan,White),
       [CPU_NORMAL] = ColorPair(Green,White),
-      [CPU_KERNEL] = ColorPair(Red,White),
-      [CPU_IOWAIT] = A_BOLD | ColorPair(Black, White),
+      [CPU_SYSTEM] = ColorPair(Red,White),
+      [CPU_IOWAIT] = A_BOLD | ColorPair(Black,White),
       [CPU_IRQ] = ColorPair(Blue,White),
       [CPU_SOFTIRQ] = ColorPair(Blue,White),
       [CPU_STEAL] = ColorPair(Cyan,White),
       [CPU_GUEST] = ColorPair(Cyan,White),
+      [PRESSURE_STALL_THREEHUNDRED] = ColorPair(Black,White),
+      [PRESSURE_STALL_SIXTY] = ColorPair(Black,White),
+      [PRESSURE_STALL_TEN] = ColorPair(Black,White),
+      [ZFS_MFU] = ColorPair(Cyan,White),
+      [ZFS_MRU] = ColorPair(Yellow,White),
+      [ZFS_ANON] = ColorPair(Magenta,White),
+      [ZFS_HEADER] = ColorPair(Yellow,White),
+      [ZFS_OTHER] = ColorPair(Magenta,White),
+      [ZFS_COMPRESSED] = ColorPair(Cyan,White),
+      [ZFS_RATIO] = ColorPair(Magenta,White),
    },
    [COLORSCHEME_LIGHTTERMINAL] = {
       [RESET_COLOR] = ColorPair(Black,Black),
@@ -396,19 +471,28 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [LOAD] = ColorPair(White,Black),
       [HELP_BOLD] = ColorPair(Blue,Black),
       [CLOCK] = ColorPair(White,Black),
-      [CHECK_BOX] = ColorPair(Blue,Black),
       [CHECK_MARK] = ColorPair(Black,Black),
       [CHECK_TEXT] = ColorPair(Black,Black),
       [HOSTNAME] = ColorPair(White,Black),
       [CPU_NICE] = ColorPair(Cyan,Black),
       [CPU_NICE_TEXT] = ColorPair(Cyan,Black),
       [CPU_NORMAL] = ColorPair(Green,Black),
-      [CPU_KERNEL] = ColorPair(Red,Black),
-      [CPU_IOWAIT] = A_BOLD | ColorPair(Black, Black),
+      [CPU_SYSTEM] = ColorPair(Red,Black),
+      [CPU_IOWAIT] = A_BOLD | ColorPair(Black,Black),
       [CPU_IRQ] = A_BOLD | ColorPair(Blue,Black),
       [CPU_SOFTIRQ] = ColorPair(Blue,Black),
       [CPU_STEAL] = ColorPair(Black,Black),
       [CPU_GUEST] = ColorPair(Black,Black),
+      [PRESSURE_STALL_THREEHUNDRED] = ColorPair(Black,Black),
+      [PRESSURE_STALL_SIXTY] = ColorPair(Black,Black),
+      [PRESSURE_STALL_TEN] = ColorPair(Black,Black),
+      [ZFS_MFU] = ColorPair(Cyan,Black),
+      [ZFS_MRU] = ColorPair(Yellow,Black),
+      [ZFS_ANON] = A_BOLD | ColorPair(Magenta,Black),
+      [ZFS_HEADER] = ColorPair(Black,Black),
+      [ZFS_OTHER] = A_BOLD | ColorPair(Magenta,Black),
+      [ZFS_COMPRESSED] = ColorPair(Cyan,Black),
+      [ZFS_RATIO] = A_BOLD | ColorPair(Magenta,Black),
    },
    [COLORSCHEME_MIDNIGHT] = {
       [RESET_COLOR] = ColorPair(White,Blue),
@@ -455,19 +539,28 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [LOAD] = A_BOLD | ColorPair(White,Blue),
       [HELP_BOLD] = A_BOLD | ColorPair(Cyan,Blue),
       [CLOCK] = ColorPair(White,Blue),
-      [CHECK_BOX] = ColorPair(Cyan,Blue),
-      [CHECK_MARK] = A_BOLD | ColorPair(White,Blue),
+      [CHECK_MARK] = A_BOLD | ColorPair(Cyan,Blue),
       [CHECK_TEXT] = A_NORMAL | ColorPair(White,Blue),
       [HOSTNAME] = ColorPair(White,Blue),
       [CPU_NICE] = A_BOLD | ColorPair(Cyan,Blue),
       [CPU_NICE_TEXT] = A_BOLD | ColorPair(Cyan,Blue),
       [CPU_NORMAL] = A_BOLD | ColorPair(Green,Blue),
-      [CPU_KERNEL] = A_BOLD | ColorPair(Red,Blue),
+      [CPU_SYSTEM] = A_BOLD | ColorPair(Red,Blue),
       [CPU_IOWAIT] = A_BOLD | ColorPair(Blue,Blue),
       [CPU_IRQ] = A_BOLD | ColorPair(Black,Blue),
       [CPU_SOFTIRQ] = ColorPair(Black,Blue),
       [CPU_STEAL] = ColorPair(White,Blue),
       [CPU_GUEST] = ColorPair(White,Blue),
+      [PRESSURE_STALL_THREEHUNDRED] = A_BOLD | ColorPair(Black,Blue),
+      [PRESSURE_STALL_SIXTY] = A_NORMAL | ColorPair(White,Blue),
+      [PRESSURE_STALL_TEN] = A_BOLD | ColorPair(White,Blue),
+      [ZFS_MFU] = A_BOLD | ColorPair(White,Blue),
+      [ZFS_MRU] = A_BOLD | ColorPair(Yellow,Blue),
+      [ZFS_ANON] = A_BOLD | ColorPair(Magenta,Blue),
+      [ZFS_HEADER] = A_BOLD | ColorPair(Yellow,Blue),
+      [ZFS_OTHER] = A_BOLD | ColorPair(Magenta,Blue),
+      [ZFS_COMPRESSED] = A_BOLD | ColorPair(White,Blue),
+      [ZFS_RATIO] = A_BOLD | ColorPair(Magenta,Blue),
    },
    [COLORSCHEME_BLACKNIGHT] = {
       [RESET_COLOR] = ColorPair(Cyan,Black),
@@ -514,19 +607,28 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [LOAD] = A_BOLD,
       [HELP_BOLD] = A_BOLD | ColorPair(Cyan,Black),
       [CLOCK] = ColorPair(Green,Black),
-      [CHECK_BOX] = ColorPair(Green,Black),
       [CHECK_MARK] = A_BOLD | ColorPair(Green,Black),
       [CHECK_TEXT] = ColorPair(Cyan,Black),
       [HOSTNAME] = ColorPair(Green,Black),
       [CPU_NICE] = ColorPair(Blue,Black),
       [CPU_NICE_TEXT] = A_BOLD | ColorPair(Blue,Black),
       [CPU_NORMAL] = ColorPair(Green,Black),
-      [CPU_KERNEL] = ColorPair(Red,Black),
+      [CPU_SYSTEM] = ColorPair(Red,Black),
       [CPU_IOWAIT] = ColorPair(Yellow,Black),
       [CPU_IRQ] = A_BOLD | ColorPair(Blue,Black),
       [CPU_SOFTIRQ] = ColorPair(Blue,Black),
       [CPU_STEAL] = ColorPair(Cyan,Black),
       [CPU_GUEST] = ColorPair(Cyan,Black),
+      [PRESSURE_STALL_THREEHUNDRED] = ColorPair(Green,Black),
+      [PRESSURE_STALL_SIXTY] = ColorPair(Green,Black),
+      [PRESSURE_STALL_TEN] = A_BOLD | ColorPair(Green,Black),
+      [ZFS_MFU] = ColorPair(Blue,Black),
+      [ZFS_MRU] = ColorPair(Yellow,Black),
+      [ZFS_ANON] = ColorPair(Magenta,Black),
+      [ZFS_HEADER] = ColorPair(Yellow,Black),
+      [ZFS_OTHER] = ColorPair(Magenta,Black),
+      [ZFS_COMPRESSED] = ColorPair(Blue,Black),
+      [ZFS_RATIO] = ColorPair(Magenta,Black),
    },
    [COLORSCHEME_BROKENGRAY] = { 0 } // dynamically generated.
 };
@@ -604,12 +706,12 @@ void CRT_init(int delay, int colorScheme) {
    }
    CRT_colors = CRT_colorSchemes[colorScheme];
    CRT_colorScheme = colorScheme;
-   
+
    for (int i = 0; i < LAST_COLORELEMENT; i++) {
       unsigned int color = CRT_colorSchemes[COLORSCHEME_DEFAULT][i];
       CRT_colorSchemes[COLORSCHEME_BROKENGRAY][i] = color == (A_BOLD | ColorPairGrayBlack) ? ColorPair(White,Black) : color;
    }
-   
+
    halfdelay(CRT_delay);
    nonl();
    intrflush(stdscr, false);
@@ -661,17 +763,13 @@ void CRT_init(int delay, int colorScheme) {
    setlocale(LC_CTYPE, "");
 
 #ifdef HAVE_LIBNCURSESW
-   if(strcmp(nl_langinfo(CODESET), "UTF-8") == 0)
+   if(strcmp(nl_langinfo(CODESET), "UTF-8") == 0) {
       CRT_utf8 = true;
-   else
-      CRT_utf8 = false;
+      CRT_treeStr = CRT_treeStrUtf8;
+      CRT_checkStr = CRT_checkStrUtf8;
+      CRT_collapStr = CRT_collapStrUtf8;
+   }
 #endif
-
-   CRT_treeStr =
-#ifdef HAVE_LIBNCURSESW
-      CRT_utf8 ? CRT_treeStrUtf8 :
-#endif
-      CRT_treeStrAscii;
 
 #if NCURSES_MOUSE_VERSION > 1
    mousemask(BUTTON1_RELEASED | BUTTON4_PRESSED | BUTTON5_PRESSED, NULL);
