@@ -27,7 +27,7 @@ in the source distribution for its full text.
 typedef struct MaskItem_ {
    Object super;
    const char* text;
-   const char* indent;
+   const char* indent; /* used also as an condition whether this is a tree node */
    int value; /* tri-state: 0 - off, 1 - some set, 2 - all set */
    int sub_tree; /* tri-state: 0 - no sub-tree, 1 - open sub-tree, 2 - closed sub-tree */
    Vector *children;
@@ -55,20 +55,21 @@ static void MaskItem_delete(Object* cast) {
 static void MaskItem_display(Object* cast, RichString* out) {
    MaskItem* this = (MaskItem*)cast;
    assert (this != NULL);
+   RichString_append(out, CRT_colors[CHECK_BOX], "[");
    if (this->value == 2)
-      RichString_append(out, CRT_colors[CHECK_MARK], CRT_checkStr[CHECK_STR_FULL]);
+      RichString_append(out, CRT_colors[CHECK_MARK], "x");
    else if (this->value == 1)
-      RichString_append(out, CRT_colors[CHECK_MARK], CRT_checkStr[CHECK_STR_PARTIAL]);
+      RichString_append(out, CRT_colors[CHECK_MARK], "o");
    else
-      RichString_append(out, CRT_colors[CHECK_MARK], CRT_checkStr[CHECK_STR_NONE]);
+      RichString_append(out, CRT_colors[CHECK_MARK], " ");
+   RichString_append(out, CRT_colors[CHECK_BOX], "]");
    RichString_append(out, CRT_colors[CHECK_TEXT], " ");
-   if (this->indent)
+   if (this->indent) {
       RichString_append(out, CRT_colors[PROCESS_TREE], this->indent);
-   if (this->sub_tree) {
       RichString_append(out, CRT_colors[PROCESS_TREE],
-                        this->sub_tree == 1
-                        ? CRT_collapStr[COLLAP_STR_OPEN]
-                        : CRT_collapStr[COLLAP_STR_CLOSED]);
+                        this->sub_tree == 2
+                        ? CRT_treeStr[TREE_STR_OPEN]
+                        : CRT_treeStr[TREE_STR_SHUT]);
       RichString_append(out, CRT_colors[CHECK_TEXT], " ");
    }
    RichString_append(out, CRT_colors[CHECK_TEXT], this->text);
@@ -84,7 +85,7 @@ static ObjectClass MaskItem_class = {
 static MaskItem* MaskItem_newMask(const char* text, const char* indent, hwloc_bitmap_t cpuset, bool owner) {
    MaskItem* this = AllocThis(MaskItem);
    this->text = xStrdup(text);
-   this->indent = xStrdup(indent);
+   this->indent = xStrdup(indent); /* nonnull for tree node */
    this->value = 0;
    this->ownCpuset = owner;
    this->cpuset = cpuset;
@@ -98,7 +99,7 @@ static MaskItem* MaskItem_newMask(const char* text, const char* indent, hwloc_bi
 static MaskItem* MaskItem_newSingleton(const char* text, int cpu, bool isSet) {
    MaskItem* this = AllocThis(MaskItem);
    this->text = xStrdup(text);
-   this->indent = NULL;
+   this->indent = NULL; /* not a tree node */
    this->sub_tree = 0;
    this->children = Vector_new(Class(MaskItem), true, DEFAULT_SIZE);
 
@@ -260,7 +261,7 @@ static HandlerResult AffinityPanel_eventHandler(Panel* super, int ch) {
 
 static MaskItem *AffinityPanel_addObject(AffinityPanel* this, hwloc_obj_t obj, unsigned indent, MaskItem *parent) {
    const char* type_name = hwloc_obj_type_string(obj->type);
-   const char* index_prefix = " #";
+   const char* index_prefix = "#";
    unsigned depth = obj->depth;
    unsigned index = obj->logical_index;
    size_t off = 0, left = 10 * depth;
@@ -279,14 +280,13 @@ static MaskItem *AffinityPanel_addObject(AffinityPanel* this, hwloc_obj_t obj, u
          size_t len = strlen(&indent_buf[off]);
          off += len, left -= len;
       }
-      xSnprintf(&indent_buf[off], left, "%s%s ",
-             obj->next_sibling ? CRT_treeStr[TREE_STR_RTEE] : CRT_treeStr[TREE_STR_BEND],
-             CRT_treeStr[TREE_STR_HORZ]);
+      xSnprintf(&indent_buf[off], left, "%s",
+             obj->next_sibling ? CRT_treeStr[TREE_STR_RTEE] : CRT_treeStr[TREE_STR_BEND]);
       size_t len = strlen(&indent_buf[off]);
       off += len, left -= len;
    }
 
-   xSnprintf(buf, 64, "%s%s%u", type_name, index_prefix, index);
+   xSnprintf(buf, 64, "%s %s%u", type_name, index_prefix, index);
 
    MaskItem *item = MaskItem_newMask(buf, indent_buf, obj->complete_cpuset, false);
    if (parent)
@@ -302,8 +302,8 @@ static MaskItem *AffinityPanel_addObject(AffinityPanel* this, hwloc_obj_t obj, u
          item->sub_tree = 2;
    }
 
-   /* "[x] " + "|- " * depth + ("[+] ")? + name */
-   unsigned width = (CRT_utf8 ? 2 : 4) + 3 * depth + (item->sub_tree ? (CRT_utf8 ? 2 : 4) : 0) + strlen(buf);
+   /* "[x] " + "|- " * depth + ("- ")?(if root node) + name */
+   unsigned width = 4 + 3 * depth + (2 * !depth) + strlen(buf);
    if (width > this->width)
       this->width = width;
 
