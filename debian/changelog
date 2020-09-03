@@ -1,3 +1,14 @@
+htop (3.0.1-1) unstable; urgency=medium
+
+  * New upstream release 3.0.1
+  * Fix early exit with longer sysfs battery paths
+  * Improve OOM output, fix sorting
+  * Rework check buttons and tree open/closed
+  * Add -U/--no-unicode option to disable unicode
+  * Improvements to the affinity panel
+
+ -- Daniel Lange <DLange@debian.org>  Thu, 03 Sep 2020 12:40:00 +0200
+
 htop (3.0.0-1) unstable; urgency=medium
 
   * Switch upstream to htop-dev
