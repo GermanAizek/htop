@@ -1,3 +1,12 @@
+htop (3.0.2-1) unstable; urgency=medium
+
+  * New upstream release 3.0.2
+  * Drop 'vim_mode' - several issues, needs rethink
+  * fix regression in -u optional-argument handling
+  * Build system rework to remove python, header generation
+
+ -- Daniel Lange <DLange@debian.org>  Tue, 15 Sep 2020 08:02:00 +0200
+
 htop (3.0.1-1) unstable; urgency=medium
 
   * New upstream release 3.0.1
