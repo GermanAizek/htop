@@ -1,0 +1,25 @@
+From a852fae8e02650d621abdd5aea29b7a56d9a3090 Mon Sep 17 00:00:00 2001
+From: Stephen Gregoratto <dev@sgregoratto.me>
+Date: Tue, 15 Sep 2020 15:19:55 +1000
+Subject: [PATCH] configure.ac: axe python check
+
+Now that the automated header script is gone, there's no need for python
+now.
+---
+ configure.ac | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 30834f2..18617c1 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -291,9 +291,6 @@ AC_ARG_ENABLE([werror], [AS_HELP_STRING([--enable-werror], [Treat warnings as er
+ AS_IF([test "x$enable_werror" = "xyes"], [AM_CFLAGS="$AM_CFLAGS -Werror"])
+ AC_SUBST([AM_CFLAGS])
+ 
+-AC_CHECK_PROGS(PYTHON, [python python3 python2])
+-AC_SUBST(PYTHON)
+-
+ # Bail out on errors.
+ # ----------------------------------------------------------------------
+ if test ! -z "$missing_libraries"; then
