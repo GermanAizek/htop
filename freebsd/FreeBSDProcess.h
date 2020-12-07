@@ -3,9 +3,20 @@
 /*
 htop - FreeBSDProcess.h
 (C) 2015 Hisham H. Muhammad
-Released under the GNU GPL, see the COPYING file
+Released under the GNU GPLv2, see the COPYING file
 in the source distribution for its full text.
 */
+
+#include <stdbool.h>
+
+#include "Object.h"
+#include "Process.h"
+#include "Settings.h"
+
+
+#define PROCESS_FLAG_FREEBSD_TTY   0x0100
+
+extern const char* const nodevStr;
 
 typedef enum FreeBSDProcessFields_ {
    // Add platform-specific fields here, with ids >= 100
@@ -19,26 +30,27 @@ typedef struct FreeBSDProcess_ {
    int   kernel;
    int   jid;
    char* jname;
+   const char* ttyPath;
 } FreeBSDProcess;
 
-#define Process_isKernelThread(_process) (_process->kernel == 1)
+static inline bool Process_isKernelThread(const Process* this) {
+   return ((const FreeBSDProcess*)this)->kernel == 1;
+}
 
-#define Process_isUserlandThread(_process) (_process->pid != _process->tgid)
+static inline bool Process_isUserlandThread(const Process* this) {
+   return this->pid != this->tgid;
+}
 
-extern ProcessClass FreeBSDProcess_class;
+extern const ProcessClass FreeBSDProcess_class;
 
 extern ProcessFieldData Process_fields[];
 
 extern ProcessPidColumn Process_pidColumns[];
 
-FreeBSDProcess* FreeBSDProcess_new(Settings* settings);
+Process* FreeBSDProcess_new(const Settings* settings);
 
 void Process_delete(Object* cast);
 
-void FreeBSDProcess_writeField(Process* this, RichString* str, ProcessField field);
-
-long FreeBSDProcess_compare(const void* v1, const void* v2);
-
-bool Process_isThread(Process* this);
+bool Process_isThread(const Process* this);
 
 #endif

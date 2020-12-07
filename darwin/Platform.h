@@ -4,35 +4,44 @@
 htop - darwin/Platform.h
 (C) 2014 Hisham H. Muhammad
 (C) 2015 David C. Hunt
-Released under the GNU GPL, see the COPYING file
+Released under the GNU GPLv2, see the COPYING file
 in the source distribution for its full text.
 */
 
+#include <stdbool.h>
+#include <sys/types.h>
+
 #include "Action.h"
-#include "SignalsPanel.h"
-#include "CPUMeter.h"
 #include "BatteryMeter.h"
+#include "CPUMeter.h"
 #include "DarwinProcess.h"
+#include "DiskIOMeter.h"
+#include "ProcessLocksScreen.h"
+#include "SignalsPanel.h"
+
+extern ProcessFieldData Process_fields[];
 
 extern ProcessField Platform_defaultFields[];
+
+extern int Platform_numberOfFields;
 
 extern const SignalItem Platform_signals[];
 
 extern const unsigned int Platform_numberOfSignals;
 
-extern ProcessFieldData Process_fields[];
+extern const MeterClass* const Platform_meterTypes[];
 
-extern MeterClass* Platform_meterTypes[];
+void Platform_init(void);
+
+void Platform_done(void);
 
 void Platform_setBindings(Htop_Action* keys);
 
-extern int Platform_numberOfFields;
-
-int Platform_getUptime();
+int Platform_getUptime(void);
 
 void Platform_getLoadAverage(double* one, double* five, double* fifteen);
 
-int Platform_getMaxPid();
+int Platform_getMaxPid(void);
 
 extern ProcessPidColumn Process_pidColumns[];
 
@@ -47,5 +56,18 @@ void Platform_setZfsArcValues(Meter* this);
 void Platform_setZfsCompressedArcValues(Meter* this);
 
 char* Platform_getProcessEnv(pid_t pid);
+
+char* Platform_getInodeFilename(pid_t pid, ino_t inode);
+
+FileLocks_ProcessData* Platform_getProcessLocks(pid_t pid);
+
+bool Platform_getDiskIO(DiskIOData* data);
+
+bool Platform_getNetworkIO(unsigned long int* bytesReceived,
+                           unsigned long int* packetsReceived,
+                           unsigned long int* bytesTransmitted,
+                           unsigned long int* packetsTransmitted);
+
+void Platform_getBattery(double *percent, ACPresence *isOnAC);
 
 #endif

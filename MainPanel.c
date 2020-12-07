@@ -2,33 +2,35 @@
 htop - ColumnsPanel.c
 (C) 2004-2015 Hisham H. Muhammad
 (C) 2020 Red Hat, Inc.  All Rights Reserved.
-Released under the GNU GPL, see the COPYING file
+Released under the GNU GPLv2, see the COPYING file
 in the source distribution for its full text.
 */
 
 #include "MainPanel.h"
-#include "Process.h"
-#include "Platform.h"
-#include "CRT.h"
 
+#include <ctype.h>
 #include <stdlib.h>
 
-static const char* const MainFunctions[]  = {"Help   ", "Setup  ", "Search ", "Filter ", "Tree   ", "SortBy ", "Nice - ", "Nice + ", "Kill   ", "Quit   ", NULL};
+#include "CRT.h"
+#include "FunctionBar.h"
+#include "Platform.h"
+#include "Process.h"
+#include "ProcessList.h"
+#include "ProvideCurses.h"
+#include "Settings.h"
+#include "XUtils.h"
+
+
+static const char* const MainFunctions[]  = {"Help  ", "Setup ", "Search", "Filter", "Tree  ", "SortBy", "Nice -", "Nice +", "Kill  ", "Quit  ", NULL};
 
 void MainPanel_updateTreeFunctions(MainPanel* this, bool mode) {
    FunctionBar* bar = MainPanel_getFunctionBar(this);
-   if (mode) {
-      FunctionBar_setLabel(bar, KEY_F(5), "Sorted");
-      FunctionBar_setLabel(bar, KEY_F(6), "Collap");
-   } else {
-      FunctionBar_setLabel(bar, KEY_F(5), "Tree  ");
-      FunctionBar_setLabel(bar, KEY_F(6), "SortBy");
-   }
+   FunctionBar_setLabel(bar, KEY_F(5), mode ? "Sorted" : "Tree  ");
 }
 
 void MainPanel_pidSearch(MainPanel* this, int ch) {
    Panel* super = (Panel*) this;
-   pid_t pid = ch-48 + this->pidSearch;
+   pid_t pid = ch - 48 + this->pidSearch;
    for (int i = 0; i < Panel_size(super); i++) {
       Process* p = (Process*) Panel_get(super, i);
       if (p && p->pid == pid) {
@@ -49,15 +51,17 @@ static HandlerResult MainPanel_eventHandler(Panel* super, int ch) {
 
    Htop_Reaction reaction = HTOP_OK;
 
+   if (ch != ERR)
+      this->state->hideProcessSelection = false;
+
    if (EVENT_IS_HEADER_CLICK(ch)) {
       int x = EVENT_HEADER_CLICK_GET_X(ch);
-      ProcessList* pl = this->state->pl;
+      const ProcessList* pl = this->state->pl;
       Settings* settings = this->state->settings;
       int hx = super->scrollH + x + 1;
       ProcessField field = ProcessList_keyAt(pl, hx);
       if (field == settings->sortKey) {
          Settings_invertSortOrder(settings);
-         settings->treeView = false;
       } else {
          reaction |= Action_setSortKey(settings, field);
       }
@@ -75,11 +79,12 @@ static HandlerResult MainPanel_eventHandler(Panel* super, int ch) {
       }
       result = HANDLED;
    } else if (ch == 27) {
+      this->state->hideProcessSelection = true;
       return HANDLED;
    } else if (ch != ERR && ch > 0 && ch < KEY_MAX && this->keys[ch]) {
       reaction |= (this->keys[ch])(this->state);
       result = HANDLED;
-   } else if (isdigit(ch)) {
+   } else if (0 < ch && ch < 255 && isdigit((unsigned char)ch)) {
       MainPanel_pidSearch(this, ch);
    } else {
       if (ch != ERR) {
@@ -92,6 +97,9 @@ static HandlerResult MainPanel_eventHandler(Panel* super, int ch) {
    if (reaction & HTOP_REDRAW_BAR) {
       MainPanel_updateTreeFunctions(this, this->state->settings->treeView);
       IncSet_drawBar(this->inc);
+      if (this->state->pauseProcessUpdate) {
+         FunctionBar_append("PAUSED", CRT_colors[PAUSED]);
+      }
    }
    if (reaction & HTOP_UPDATE_PANELHDR) {
       ProcessList_printHeader(this->state->pl, Panel_getHeader(super));
@@ -125,9 +133,7 @@ int MainPanel_selectedPid(MainPanel* this) {
 
 const char* MainPanel_getValue(MainPanel* this, int i) {
    Process* p = (Process*) Panel_get((Panel*)this, i);
-   if (p)
-      return p->comm;
-   return "";
+   return Process_getCommand(p);
 }
 
 bool MainPanel_foreachProcess(MainPanel* this, MainPanel_ForeachProcessFn fn, Arg arg, bool* wasAnyTagged) {
@@ -143,14 +149,18 @@ bool MainPanel_foreachProcess(MainPanel* this, MainPanel_ForeachProcessFn fn, Ar
    }
    if (!anyTagged) {
       Process* p = (Process*) Panel_getSelected(super);
-      if (p) ok = fn(p, arg) && ok;
+      if (p) {
+         ok &= fn(p, arg);
+      }
    }
+
    if (wasAnyTagged)
       *wasAnyTagged = anyTagged;
+
    return ok;
 }
 
-PanelClass MainPanel_class = {
+const PanelClass MainPanel_class = {
    .super = {
       .extends = Class(Panel),
       .delete = MainPanel_delete

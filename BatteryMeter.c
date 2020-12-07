@@ -1,7 +1,7 @@
 /*
 htop - BatteryMeter.c
 (C) 2004-2011 Hisham H. Muhammad
-Released under the GNU GPL, see the COPYING file
+Released under the GNU GPLv2, see the COPYING file
 in the source distribution for its full text.
 
 This meter written by Ian P. Hands (iphands@gmail.com, ihands@redhat.com).
@@ -9,29 +9,27 @@ This meter written by Ian P. Hands (iphands@gmail.com, ihands@redhat.com).
 
 #include "BatteryMeter.h"
 
-#include "Battery.h"
-#include "ProcessList.h"
+#include <math.h>
+
 #include "CRT.h"
-#include "StringUtils.h"
+#include "Object.h"
 #include "Platform.h"
-
-#include <string.h>
-#include <stdlib.h>
+#include "XUtils.h"
 
 
-int BatteryMeter_attributes[] = {
+static const int BatteryMeter_attributes[] = {
    BATTERY
 };
 
-static void BatteryMeter_updateValues(Meter * this, char *buffer, int len) {
+static void BatteryMeter_updateValues(Meter* this, char* buffer, size_t len) {
    ACPresence isOnAC;
    double percent;
 
-   Battery_getData(&percent, &isOnAC);
+   Platform_getBattery(&percent, &isOnAC);
 
-   if (percent == -1) {
-      this->values[0] = 0;
-      xSnprintf(buffer, len, "n/a");
+   if (isnan(percent)) {
+      this->values[0] = NAN;
+      xSnprintf(buffer, len, "N/A");
       return;
    }
 
@@ -55,11 +53,9 @@ static void BatteryMeter_updateValues(Meter * this, char *buffer, int len) {
    } else {
       xSnprintf(buffer, len, unknownText, percent);
    }
-
-   return;
 }
 
-MeterClass BatteryMeter_class = {
+const MeterClass BatteryMeter_class = {
    .super = {
       .extends = Class(Meter),
       .delete = Meter_delete

@@ -1,18 +1,20 @@
-#include "EnvScreen.h"
+#include "config.h" // IWYU pragma: keep
 
-#include "config.h"
-#include "CRT.h"
-#include "IncSet.h"
-#include "ListItem.h"
-#include "Platform.h"
-#include "StringUtils.h"
+#include "EnvScreen.h"
 
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+
+#include "CRT.h"
+#include "Macros.h"
+#include "Panel.h"
+#include "Platform.h"
+#include "ProvideCurses.h"
+#include "Vector.h"
+#include "XUtils.h"
 
 
-InfoScreenClass EnvScreen_class = {
+const InfoScreenClass EnvScreen_class = {
    .super = {
       .extends = Class(Object),
       .delete = EnvScreen_delete
@@ -24,7 +26,7 @@ InfoScreenClass EnvScreen_class = {
 EnvScreen* EnvScreen_new(Process* process) {
    EnvScreen* this = xMalloc(sizeof(EnvScreen));
    Object_setClass(this, Class(EnvScreen));
-   return (EnvScreen*) InfoScreen_init(&this->super, process, NULL, LINES-3, " ");
+   return (EnvScreen*) InfoScreen_init(&this->super, process, NULL, LINES - 3, " ");
 }
 
 void EnvScreen_delete(Object* this) {
@@ -32,7 +34,7 @@ void EnvScreen_delete(Object* this) {
 }
 
 void EnvScreen_draw(InfoScreen* this) {
-   InfoScreen_drawTitled(this, "Environment of process %d - %s", this->process->pid, this->process->comm);
+   InfoScreen_drawTitled(this, "Environment of process %d - %s", this->process->pid, Process_getCommand(this->process));
 }
 
 void EnvScreen_scan(InfoScreen* this) {
@@ -45,7 +47,7 @@ void EnvScreen_scan(InfoScreen* this) {
    char* env = Platform_getProcessEnv(this->process->pid);
    CRT_restorePrivileges();
    if (env) {
-      for (char *p = env; *p; p = strrchr(p, 0)+1)
+      for (char* p = env; *p; p = strrchr(p, 0) + 1)
          InfoScreen_addLine(this, p);
       free(env);
    }
