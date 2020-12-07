@@ -10,8 +10,11 @@ Build-Depends: debhelper-compat (= 13),
                libkvm-dev [kfreebsd-any],
                libncurses5-dev,
                libncursesw5-dev,
+               libnl-3-dev,
+               libnl-genl-3-dev,
+               libsensors4-dev,
                pkg-config
-Standards-Version: 4.5.0
+Standards-Version: 4.5.1
 Rules-Requires-Root: no
 Homepage: https://htop.dev/
 Vcs-Browser: https://salsa.debian.org/debian/htop

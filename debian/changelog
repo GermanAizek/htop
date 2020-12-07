@@ -1,3 +1,36 @@
+htop (3.0.3-1) unstable; urgency=medium
+
+  * New upstream release 3.0.3
+  * Enable delayacct support, closes: #908636
+  * Enable libsensors support
+  * Add svg icon, closes: #663635
+  * Enable pausing screen updates (press Z key), closes: #821904
+  * Hide process selection on ESC
+  * Enable process sorting in 'tree' mode
+  * Add screen for active file locks
+  * Calculate library size (M_LRS column) from maps file
+  * Add multiple new meters (Zram, systemd, network I/O, SELinux, date/time)
+  * Add Linux cwd, security attributes, disk I/O process, context switch columns
+  * Add support to change numeric options in settings screen
+  * Rename virtual memory column from M_SIZE to M_VIRT
+  * Enable showing CPU temperature in CPU meter
+  * Read CPU frequency from sysfs by default
+  * Add octuple-column CPU meters
+  * BUGFIX: On Linux consider ZFS ARC to be cache
+  * BUGFIX: Limit screen title length to window width
+  * Show selected command wrapped in a separate window
+  * Allow starting an item search with '/'
+  * Document implicit incremental search
+  * Handle 'q' as quit if first character
+  * Merged view for COMM, EXE and cmdline (press m key)
+  * Enhance highlighting of semi-large and large numbers
+  * Code hardening, speedups, fd and memory leak fixes
+  * Number CPUs from zero by default
+  * Plus more minor changes and fixes from upstream
+  * Update standards version to 4.5.1, no changes needed.
+
+ -- Daniel Lange <DLange@debian.org>  Mon, 07 Dec 2020 11:30:00 +0100
+
 htop (3.0.2-1) unstable; urgency=medium
 
   * New upstream release 3.0.2

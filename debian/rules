@@ -20,4 +20,6 @@ override_dh_auto_configure:
 		--enable-vserver \
 		--enable-cgroup \
 		--enable-unicode \
+		--enable-delayacct \
+		--with-sensors \
 		$(ARCH_DEPENDENT_CONFIGURE_PARAMS)
