@@ -4,7 +4,7 @@ htop \- interactive process viewer
 .SH "SYNOPSIS"
 .LP
 .B htop
-.RB [ \-dChpustv ]
+.RB [ \-dCFhpustvH ]
 .SH "DESCRIPTION"
 .LP
 .B htop
@@ -36,6 +36,9 @@ Start
 .B htop
 in monochrome mode
 .TP
+\fB\-F \-\-filter=FILTER
+Filter processes by command
+.TP
 \fB\-h \-\-help
 Display a help message and exit
 .TP
@@ -51,11 +54,17 @@ Show only the processes of a given user
 \fB\-U \-\-no-unicode\fR
 Do not use unicode but ASCII characters for graph meters
 .TP
-\fB\-v \-\-version
+\fB\-M \-\-no-mouse\fR
+Disable support of mouse control
+.TP
+\fB\-V \-\-version
 Output version information and exit
 .TP
 \fB\-t \-\-tree
 Show processes in tree view
+.TP
+\fB\-H \-\-highlight-changes=DELAY\fR
+Highlight new and old processes
 .SH "INTERACTIVE COMMANDS"
 .LP
 The following commands are supported while in
@@ -113,6 +122,13 @@ update of system calls issued by the process.
 Display open files for a process: if lsof(1) is installed, pressing this key
 will display the list of file descriptors opened by the process.
 .TP
+.B w
+Display the command line of the selected process in a separate screen, wrapped
+onto multiple lines as needed.
+.TP
+.B x
+Display the active file locks of the selected process in a separate screen.
+.TP
 .B F1, h, ?
 Go to the help screen
 .TP
@@ -125,6 +141,10 @@ select which columns are displayed, in which order.
 Incrementally search the command lines of all the displayed processes. The
 currently selected (highlighted) command will update as you type. While in
 search mode, pressing F3 will cycle through matching occurrences.
+
+Alternatively the search can be started by simply typing the command
+you are looking for, although for the first character normal key
+bindings take precedence.
 .TP
 .B F4, \\\\
 Incremental process filtering: type in part of a process command line and
@@ -199,6 +219,12 @@ userspace processes in the process list. (This is a toggle key.)
 .B p
 Show full paths to running programs, where applicable. (This is a toggle key.)
 .TP
+.B Z
+Pause/resume process updates.
+.TP
+.B m
+Merge exe, comm and cmdline, where applicable. (This is a toggle key.)
+.TP
 .B Ctrl-L
 Refresh: redraw screen and recalculate values.
 .TP
@@ -219,7 +245,18 @@ main screen, it is shown below in parenthesis.
 .LP
 .TP 5
 .B Command
-The full command line of the process (i.e. program name and arguments).
+The full command line of the process (i.e. program name and arguments). If the
+option 'Merge exe, comm and cmdline in Command' (toggled by the 'm' key) is set,
+and if readable, the executable path (/proc/[pid]/exe) and the command name
+(/proc/[pid]/comm) are also shown merged with the command line.
+.TP
+.B Comm
+The command name of the process obtained from /proc/[pid]/comm, if readable.
+.TP
+.B Exe
+The abbreviated basename of the executable of the process, obtained from
+/proc/[pid]/exe, if readable. htop is able to read this file on linux for ALL
+the processes only if it has the capability CAP_SYS_PTRACE or root privileges.
 .TP
 .B PID
 The process ID.
@@ -293,7 +330,7 @@ The time the process was started.
 .B PROCESSOR (CPU)
 The ID of the CPU the process last executed on.
 .TP
-.B M_SIZE (VIRT)
+.B M_VIRT (VIRT)
 The size of the virtual memory of the process.
 .TP
 .B M_RESIDENT (RES)
@@ -316,6 +353,17 @@ The library size of the process.
 .TP
 .B M_DT (DIRTY)
 The size of the dirty pages of the process.
+.TP
+.B M_SWAP (SWAP)
+The size of the process's swapped pages.
+.TP
+.B M_PSS (PSS)
+The proportional set size, same as M_RESIDENT but each page is divided by the
+number of processes sharing it.
+.TP
+.B M_M_PSSWP (PSSWP)
+The proportional swap share of this mapping, unlike M_SWAP this does not take
+into account swapped out page of underlying shmem objects.
 .TP
 .B ST_UID (UID)
 The user ID of the process owner.
@@ -386,6 +434,9 @@ Which cgroup the process is in.
 .B OOM
 OOM killer score.
 .TP
+.B CTXT
+Incremental sum of voluntary and nonvoluntary context switches.
+.TP
 .B IO_PRIORITY (IO)
 The I/O scheduling class followed by the priority if the class supports it:
    \fBR\fR for Realtime
@@ -400,6 +451,12 @@ The percentage of time spent waiting for the completion of synchronous block I/O
 .TP
 .B PERCENT_SWAP_DELAY (SWAPD%)
 The percentage of time spent swapping in pages. Requires CAP_NET_ADMIN.
+.TP
+.B COMM
+The command name for the process. Requires Linux kernel 2.6.33 or newer.
+.TP
+.B EXE
+The executable file of the process as reported by the kernel. Requires CAP_SYS_PTRACE and PTRACE_MODE_READ_FSCRED.
 .TP
 .B All other flags
 Currently unsupported (always displays '-').

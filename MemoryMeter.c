@@ -1,42 +1,39 @@
 /*
 htop - MemoryMeter.c
 (C) 2004-2011 Hisham H. Muhammad
-Released under the GNU GPL, see the COPYING file
+Released under the GNU GPLv2, see the COPYING file
 in the source distribution for its full text.
 */
 
 #include "MemoryMeter.h"
 
 #include "CRT.h"
+#include "Object.h"
 #include "Platform.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <sys/param.h>
-#include <assert.h>
+#include "RichString.h"
 
 
-int MemoryMeter_attributes[] = {
-   MEMORY_USED, MEMORY_BUFFERS, MEMORY_CACHE
+static const int MemoryMeter_attributes[] = {
+   MEMORY_USED,
+   MEMORY_BUFFERS,
+   MEMORY_CACHE
 };
 
-static void MemoryMeter_updateValues(Meter* this, char* buffer, int size) {
+static void MemoryMeter_updateValues(Meter* this, char* buffer, size_t size) {
    int written;
    Platform_setMemoryValues(this);
 
    written = Meter_humanUnit(buffer, this->values[0], size);
-   buffer += written;
-   if ((size -= written) > 0) {
-      *buffer++ = '/';
-      size--;
-      Meter_humanUnit(buffer, this->total, size);
-   }
+   METER_BUFFER_CHECK(buffer, size, written);
+
+   METER_BUFFER_APPEND_CHR(buffer, size, '/');
+
+   Meter_humanUnit(buffer, this->total, size);
 }
 
-static void MemoryMeter_display(Object* cast, RichString* out) {
+static void MemoryMeter_display(const Object* cast, RichString* out) {
    char buffer[50];
-   Meter* this = (Meter*)cast;
+   const Meter* this = (const Meter*)cast;
    RichString_write(out, CRT_colors[METER_TEXT], ":");
    Meter_humanUnit(buffer, this->total, 50);
    RichString_append(out, CRT_colors[METER_VALUE], buffer);
@@ -51,7 +48,7 @@ static void MemoryMeter_display(Object* cast, RichString* out) {
    RichString_append(out, CRT_colors[MEMORY_CACHE], buffer);
 }
 
-MeterClass MemoryMeter_class = {
+const MeterClass MemoryMeter_class = {
    .super = {
       .extends = Class(Meter),
       .delete = Meter_delete,

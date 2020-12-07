@@ -1,31 +1,22 @@
 /*
 htop - FreeBSDProcess.c
 (C) 2015 Hisham H. Muhammad
-Released under the GNU GPL, see the COPYING file
+Released under the GNU GPLv2, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include "Process.h"
-#include "ProcessList.h"
 #include "FreeBSDProcess.h"
-#include "Platform.h"
-#include "CRT.h"
 
 #include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <sys/syscall.h>
+
+#include "CRT.h"
+#include "Macros.h"
+#include "Process.h"
+#include "RichString.h"
+#include "XUtils.h"
 
 
-ProcessClass FreeBSDProcess_class = {
-   .super = {
-      .extends = Class(Process),
-      .display = Process_display,
-      .delete = Process_delete,
-      .compare = FreeBSDProcess_compare
-   },
-   .writeField = (Process_WriteField) FreeBSDProcess_writeField,
-};
+const char* const nodevStr = "nodev";
 
 ProcessFieldData Process_fields[] = {
    [0] = { .name = "", .title = NULL, .description = NULL, .flags = 0, },
@@ -35,7 +26,7 @@ ProcessFieldData Process_fields[] = {
    [PPID] = { .name = "PPID", .title = "   PPID ", .description = "Parent process ID", .flags = 0, },
    [PGRP] = { .name = "PGRP", .title = "   PGRP ", .description = "Process group ID", .flags = 0, },
    [SESSION] = { .name = "SESSION", .title = "    SID ", .description = "Process's session ID", .flags = 0, },
-   [TTY_NR] = { .name = "TTY_NR", .title = "    TTY ", .description = "Controlling terminal", .flags = 0, },
+   [TTY_NR] = { .name = "TTY_NR", .title = "    TTY ", .description = "Controlling terminal", .flags = PROCESS_FLAG_FREEBSD_TTY, },
    [TPGID] = { .name = "TPGID", .title = "  TPGID ", .description = "Process ID of the fg process group of the controlling terminal", .flags = 0, },
    [MINFLT] = { .name = "MINFLT", .title = "     MINFLT ", .description = "Number of minor faults which have not required loading a memory page from disk", .flags = 0, },
    [MAJFLT] = { .name = "MAJFLT", .title = "     MAJFLT ", .description = "Number of major faults which have required loading a memory page from disk", .flags = 0, },
@@ -44,10 +35,11 @@ ProcessFieldData Process_fields[] = {
    [STARTTIME] = { .name = "STARTTIME", .title = "START ", .description = "Time the process was started", .flags = 0, },
 
    [PROCESSOR] = { .name = "PROCESSOR", .title = "CPU ", .description = "Id of the CPU the process last executed on", .flags = 0, },
-   [M_SIZE] = { .name = "M_SIZE", .title = " VIRT ", .description = "Total program size in virtual memory", .flags = 0, },
+   [M_VIRT] = { .name = "M_VIRT", .title = " VIRT ", .description = "Total program size in virtual memory", .flags = 0, },
    [M_RESIDENT] = { .name = "M_RESIDENT", .title = "  RES ", .description = "Resident set size, size of the text and data sections, plus stack usage", .flags = 0, },
    [ST_UID] = { .name = "ST_UID", .title = "  UID ", .description = "User ID of the process owner", .flags = 0, },
    [PERCENT_CPU] = { .name = "PERCENT_CPU", .title = "CPU% ", .description = "Percentage of the CPU time the process used in the last sampling", .flags = 0, },
+   [PERCENT_NORM_CPU] = { .name = "PERCENT_NORM_CPU", .title = "NCPU%", .description = "Normalized percentage of the CPU time the process used in the last sampling (normalized by cpu count)", .flags = 0, },
    [PERCENT_MEM] = { .name = "PERCENT_MEM", .title = "MEM% ", .description = "Percentage of the memory the process is using, based on resident memory size", .flags = 0, },
    [USER] = { .name = "USER", .title = "USER      ", .description = "Username of the process owner (or user ID if name cannot be determined)", .flags = 0, },
    [TIME] = { .name = "TIME", .title = "  TIME+  ", .description = "Total time the process has spent in user and system time", .flags = 0, },
@@ -69,11 +61,11 @@ ProcessPidColumn Process_pidColumns[] = {
    { .id = 0, .label = NULL },
 };
 
-FreeBSDProcess* FreeBSDProcess_new(Settings* settings) {
+Process* FreeBSDProcess_new(const Settings* settings) {
    FreeBSDProcess* this = xCalloc(1, sizeof(FreeBSDProcess));
    Object_setClass(this, Class(FreeBSDProcess));
    Process_init(&this->super, settings);
-   return this;
+   return &this->super;
 }
 
 void Process_delete(Object* cast) {
@@ -83,15 +75,15 @@ void Process_delete(Object* cast) {
    free(this);
 }
 
-void FreeBSDProcess_writeField(Process* this, RichString* str, ProcessField field) {
-   FreeBSDProcess* fp = (FreeBSDProcess*) this;
+static void FreeBSDProcess_writeField(const Process* this, RichString* str, ProcessField field) {
+   const FreeBSDProcess* fp = (const FreeBSDProcess*) this;
    char buffer[256]; buffer[255] = '\0';
    int attr = CRT_colors[DEFAULT_COLOR];
    int n = sizeof(buffer) - 1;
    switch ((int) field) {
    // add FreeBSD-specific fields here
    case JID: xSnprintf(buffer, n, Process_pidFormat, fp->jid); break;
-   case JAIL:{
+   case JAIL: {
       xSnprintf(buffer, n, "%-11s ", fp->jname);
       if (buffer[11] != '\0') {
          buffer[11] = ' ';
@@ -99,6 +91,16 @@ void FreeBSDProcess_writeField(Process* this, RichString* str, ProcessField fiel
       }
       break;
    }
+   case TTY_NR:
+      if (fp->ttyPath) {
+         if (fp->ttyPath == nodevStr)
+            attr = CRT_colors[PROCESS_SHADOW];
+         xSnprintf(buffer, n, "%-8s", fp->ttyPath);
+      } else {
+         attr = CRT_colors[PROCESS_SHADOW];
+         xSnprintf(buffer, n, "?        ");
+      }
+      break;
    default:
       Process_writeField(this, str, field);
       return;
@@ -106,32 +108,47 @@ void FreeBSDProcess_writeField(Process* this, RichString* str, ProcessField fiel
    RichString_append(str, attr, buffer);
 }
 
-long FreeBSDProcess_compare(const void* v1, const void* v2) {
-   FreeBSDProcess *p1, *p2;
-   Settings *settings = ((Process*)v1)->settings;
+static long FreeBSDProcess_compare(const void* v1, const void* v2) {
+   const FreeBSDProcess *p1, *p2;
+   const Settings *settings = ((const Process*)v1)->settings;
+
    if (settings->direction == 1) {
-      p1 = (FreeBSDProcess*)v1;
-      p2 = (FreeBSDProcess*)v2;
+      p1 = (const FreeBSDProcess*)v1;
+      p2 = (const FreeBSDProcess*)v2;
    } else {
-      p2 = (FreeBSDProcess*)v1;
-      p1 = (FreeBSDProcess*)v2;
+      p2 = (const FreeBSDProcess*)v1;
+      p1 = (const FreeBSDProcess*)v2;
    }
+
    switch ((int) settings->sortKey) {
    // add FreeBSD-specific fields here
    case JID:
-      return (p1->jid - p2->jid);
+      return SPACESHIP_NUMBER(p1->jid, p2->jid);
    case JAIL:
-      return strcmp(p1->jname ? p1->jname : "", p2->jname ? p2->jname : "");
+      return SPACESHIP_NULLSTR(p1->jname, p2->jname);
+   case TTY_NR:
+      return SPACESHIP_NULLSTR(p1->ttyPath, p2->ttyPath);
    default:
       return Process_compare(v1, v2);
    }
 }
 
-bool Process_isThread(Process* this) {
-   FreeBSDProcess* fp = (FreeBSDProcess*) this;
+bool Process_isThread(const Process* this) {
+   const FreeBSDProcess* fp = (const FreeBSDProcess*) this;
 
-   if (fp->kernel == 1 )
+   if (fp->kernel == 1 ) {
       return 1;
-   else
-      return (Process_isUserlandThread(this));
+   } else {
+      return Process_isUserlandThread(this);
+   }
 }
+
+const ProcessClass FreeBSDProcess_class = {
+   .super = {
+      .extends = Class(Process),
+      .display = Process_display,
+      .delete = Process_delete,
+      .compare = FreeBSDProcess_compare
+   },
+   .writeField = FreeBSDProcess_writeField,
+};
