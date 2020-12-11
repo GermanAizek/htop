@@ -1,4 +1,4 @@
-htop (3.0.3-2) UNRELEASED; urgency=medium
+htop (3.0.3-2) unstable; urgency=medium
 
   [ Daniel Lange ]
   * Fix display in tree mode
@@ -7,7 +7,7 @@ htop (3.0.3-2) UNRELEASED; urgency=medium
   [ Graham Inggs ]
   * Fix kFreeBSD build
 
- -- Daniel Lange <DLange@debian.org>  Fri, 11 Dec 2020 18:22:00 +0100
+ -- Daniel Lange <DLange@debian.org>  Fri, 11 Dec 2020 21:00:00 +0100
 
 htop (3.0.3-1) unstable; urgency=medium
 
