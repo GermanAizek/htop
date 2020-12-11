@@ -5,9 +5,12 @@ DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk
 
 ifeq (linux,$(DEB_HOST_ARCH_OS))
-	ARCH_DEPENDENT_CONFIGURE_PARAMS = --enable-linux-affinity
+	ARCH_DEPENDENT_CONFIGURE_PARAMS = \
+		--enable-linux-affinity \
+		--enable-delayacct
 else
-	ARCH_DEPENDENT_CONFIGURE_PARAMS = --enable-hwloc
+	ARCH_DEPENDENT_CONFIGURE_PARAMS = \
+		--enable-hwloc
 endif
 
 %:
@@ -20,6 +23,5 @@ override_dh_auto_configure:
 		--enable-vserver \
 		--enable-cgroup \
 		--enable-unicode \
-		--enable-delayacct \
 		--with-sensors \
 		$(ARCH_DEPENDENT_CONFIGURE_PARAMS)

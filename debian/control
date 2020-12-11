@@ -6,12 +6,13 @@ Uploaders: Eugene V. Lyubimkin <jackyf@debian.org>,
            Graham Inggs <ginggs@debian.org>
 Build-Depends: debhelper-compat (= 13),
                dpkg-dev (>= 1.16.1.1),
+               libdevstat-dev [kfreebsd-any],
                libhwloc-dev [!linux-any],
                libkvm-dev [kfreebsd-any],
                libncurses5-dev,
                libncursesw5-dev,
-               libnl-3-dev,
-               libnl-genl-3-dev,
+               libnl-3-dev  [linux-any],
+               libnl-genl-3-dev  [linux-any],
                libsensors4-dev,
                pkg-config
 Standards-Version: 4.5.1
