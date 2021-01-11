@@ -59,25 +59,25 @@ static void MaskItem_delete(Object* cast) {
 static void MaskItem_display(const Object* cast, RichString* out) {
    const MaskItem* this = (const MaskItem*)cast;
    assert (this != NULL);
-   RichString_append(out, CRT_colors[CHECK_BOX], "[");
+   RichString_appendAscii(out, CRT_colors[CHECK_BOX], "[");
    if (this->value == 2) {
-      RichString_append(out, CRT_colors[CHECK_MARK], "x");
+      RichString_appendAscii(out, CRT_colors[CHECK_MARK], "x");
    } else if (this->value == 1) {
-      RichString_append(out, CRT_colors[CHECK_MARK], "o");
+      RichString_appendAscii(out, CRT_colors[CHECK_MARK], "o");
    } else {
-      RichString_append(out, CRT_colors[CHECK_MARK], " ");
+      RichString_appendAscii(out, CRT_colors[CHECK_MARK], " ");
    }
-   RichString_append(out, CRT_colors[CHECK_BOX], "]");
-   RichString_append(out, CRT_colors[CHECK_TEXT], " ");
+   RichString_appendAscii(out, CRT_colors[CHECK_BOX], "]");
+   RichString_appendAscii(out, CRT_colors[CHECK_TEXT], " ");
    if (this->indent) {
-      RichString_append(out, CRT_colors[PROCESS_TREE], this->indent);
-      RichString_append(out, CRT_colors[PROCESS_TREE],
-                        this->sub_tree == 2
-                        ? CRT_treeStr[TREE_STR_OPEN]
-                        : CRT_treeStr[TREE_STR_SHUT]);
-      RichString_append(out, CRT_colors[CHECK_TEXT], " ");
+      RichString_appendWide(out, CRT_colors[PROCESS_TREE], this->indent);
+      RichString_appendWide(out, CRT_colors[PROCESS_TREE],
+                            this->sub_tree == 2
+                            ? CRT_treeStr[TREE_STR_OPEN]
+                            : CRT_treeStr[TREE_STR_SHUT]);
+      RichString_appendAscii(out, CRT_colors[CHECK_TEXT], " ");
    }
-   RichString_append(out, CRT_colors[CHECK_TEXT], this->text);
+   RichString_appendWide(out, CRT_colors[CHECK_TEXT], this->text);
 }
 
 static const ObjectClass MaskItem_class = {
@@ -173,7 +173,6 @@ static void AffinityPanel_update(AffinityPanel* this, bool keepSelected) {
    Panel* super = (Panel*) this;
 
    FunctionBar_setLabel(super->currentBar, KEY_F(3), this->topoView ? "Collapse/Expand" : "");
-   FunctionBar_draw(super->currentBar);
 
    int oldSelected = Panel_getSelectedIndex(super);
    Panel_prune(super);
@@ -281,7 +280,7 @@ static MaskItem* AffinityPanel_addObject(AffinityPanel* this, hwloc_obj_t obj, u
    indent_buf[0] = '\0';
    if (depth > 0) {
       for (unsigned i = 1; i < depth; i++) {
-         xSnprintf(&indent_buf[off], left, "%s  ", (indent & (1u << i)) ? CRT_treeStr[TREE_STR_VERT] : " ");
+         xSnprintf(&indent_buf[off], left, "%s  ", (indent & (1U << i)) ? CRT_treeStr[TREE_STR_VERT] : " ");
          size_t len = strlen(&indent_buf[off]);
          off += len;
          left -= len;
@@ -323,9 +322,9 @@ static MaskItem* AffinityPanel_addObject(AffinityPanel* this, hwloc_obj_t obj, u
 static MaskItem* AffinityPanel_buildTopology(AffinityPanel* this, hwloc_obj_t obj, unsigned indent, MaskItem* parent) {
    MaskItem* item = AffinityPanel_addObject(this, obj, indent, parent);
    if (obj->next_sibling) {
-      indent |= (1u << obj->depth);
+      indent |= (1U << obj->depth);
    } else {
-      indent &= ~(1u << obj->depth);
+      indent &= ~(1U << obj->depth);
    }
 
    for (unsigned i = 0; i < obj->arity; i++) {

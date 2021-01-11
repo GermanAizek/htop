@@ -24,22 +24,22 @@ in the source distribution for its full text.
 
 
 /* semi-global */
-long long btime;
+int pageSize;
+int pageSizeKB;
 
 /* Used to identify kernel threads in Comm and Exe columns */
 static const char *const kthreadID = "KTHREAD";
 
-ProcessFieldData Process_fields[] = {
+const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
    [0] = { .name = "", .title = NULL, .description = NULL, .flags = 0, },
-   [PID] = { .name = "PID", .title = "    PID ", .description = "Process/thread ID", .flags = 0, },
+   [PID] = { .name = "PID", .title = "PID", .description = "Process/thread ID", .flags = 0, .pidColumn = true, },
    [COMM] = { .name = "Command", .title = "Command ", .description = "Command line", .flags = 0, },
    [STATE] = { .name = "STATE", .title = "S ", .description = "Process state (S sleeping, R running, D disk, Z zombie, T traced, W paging, I idle)", .flags = 0, },
-   [PPID] = { .name = "PPID", .title = "   PPID ", .description = "Parent process ID", .flags = 0, },
-   [PGRP] = { .name = "PGRP", .title = "   PGRP ", .description = "Process group ID", .flags = 0, },
-   [SESSION] = { .name = "SESSION", .title = "    SID ", .description = "Process's session ID", .flags = 0, },
+   [PPID] = { .name = "PPID", .title = "PPID", .description = "Parent process ID", .flags = 0, .pidColumn = true, },
+   [PGRP] = { .name = "PGRP", .title = "PGRP", .description = "Process group ID", .flags = 0, .pidColumn = true, },
+   [SESSION] = { .name = "SESSION", .title = "SID", .description = "Process's session ID", .flags = 0, .pidColumn = true, },
    [TTY_NR] = { .name = "TTY_NR", .title = "TTY      ", .description = "Controlling terminal", .flags = 0, },
-   [TPGID] = { .name = "TPGID", .title = "  TPGID ", .description = "Process ID of the fg process group of the controlling terminal", .flags = 0, },
-   [FLAGS] = { .name = "FLAGS", .title = NULL, .description = NULL, .flags = 0, },
+   [TPGID] = { .name = "TPGID", .title = "TPGID", .description = "Process ID of the fg process group of the controlling terminal", .flags = 0, .pidColumn = true, },
    [MINFLT] = { .name = "MINFLT", .title = "     MINFLT ", .description = "Number of minor faults which have not required loading a memory page from disk", .flags = 0, },
    [CMINFLT] = { .name = "CMINFLT", .title = "    CMINFLT ", .description = "Children processes' minor faults", .flags = 0, },
    [MAJFLT] = { .name = "MAJFLT", .title = "     MAJFLT ", .description = "Number of major faults which have required loading a memory page from disk", .flags = 0, },
@@ -50,24 +50,7 @@ ProcessFieldData Process_fields[] = {
    [CSTIME] = { .name = "CSTIME", .title = " CSTIME+ ", .description = "Children processes' system CPU time", .flags = 0, },
    [PRIORITY] = { .name = "PRIORITY", .title = "PRI ", .description = "Kernel's internal priority for the process", .flags = 0, },
    [NICE] = { .name = "NICE", .title = " NI ", .description = "Nice value (the higher the value, the more it lets other processes take priority)", .flags = 0, },
-   [ITREALVALUE] = { .name = "ITREALVALUE", .title = NULL, .description = NULL, .flags = 0, },
    [STARTTIME] = { .name = "STARTTIME", .title = "START ", .description = "Time the process was started", .flags = 0, },
-   [VSIZE] = { .name = "VSIZE", .title = NULL, .description = NULL, .flags = 0, },
-   [RSS] = { .name = "RSS", .title = NULL, .description = NULL, .flags = 0, },
-   [RLIM] = { .name = "RLIM", .title = NULL, .description = NULL, .flags = 0, },
-   [STARTCODE] = { .name = "STARTCODE", .title = NULL, .description = NULL, .flags = 0, },
-   [ENDCODE] = { .name = "ENDCODE", .title = NULL, .description = NULL, .flags = 0, },
-   [STARTSTACK] = { .name = "STARTSTACK", .title = NULL, .description = NULL, .flags = 0, },
-   [KSTKESP] = { .name = "KSTKESP", .title = NULL, .description = NULL, .flags = 0, },
-   [KSTKEIP] = { .name = "KSTKEIP", .title = NULL, .description = NULL, .flags = 0, },
-   [SIGNAL] = { .name = "SIGNAL", .title = NULL, .description = NULL, .flags = 0, },
-   [BLOCKED] = { .name = "BLOCKED", .title = NULL, .description = NULL, .flags = 0, },
-   [SSIGIGNORE] = { .name = "SIGIGNORE", .title = NULL, .description = NULL, .flags = 0, },
-   [SIGCATCH] = { .name = "SIGCATCH", .title = NULL, .description = NULL, .flags = 0, },
-   [WCHAN] = { .name = "WCHAN", .title = NULL, .description = NULL, .flags = 0, },
-   [NSWAP] = { .name = "NSWAP", .title = NULL, .description = NULL, .flags = 0, },
-   [CNSWAP] = { .name = "CNSWAP", .title = NULL, .description = NULL, .flags = 0, },
-   [EXIT_SIGNAL] = { .name = "EXIT_SIGNAL", .title = NULL, .description = NULL, .flags = 0, },
    [PROCESSOR] = { .name = "PROCESSOR", .title = "CPU ", .description = "Id of the CPU the process last executed on", .flags = 0, },
    [M_VIRT] = { .name = "M_VIRT", .title = " VIRT ", .description = "Total program size in virtual memory", .flags = 0, },
    [M_RESIDENT] = { .name = "M_RESIDENT", .title = "  RES ", .description = "Resident set size, size of the text and data sections, plus stack usage", .flags = 0, },
@@ -83,10 +66,10 @@ ProcessFieldData Process_fields[] = {
    [USER] = { .name = "USER", .title = "USER      ", .description = "Username of the process owner (or user ID if name cannot be determined)", .flags = 0, },
    [TIME] = { .name = "TIME", .title = "  TIME+  ", .description = "Total time the process has spent in user and system time", .flags = 0, },
    [NLWP] = { .name = "NLWP", .title = "NLWP ", .description = "Number of threads in the process", .flags = 0, },
-   [TGID] = { .name = "TGID", .title = "   TGID ", .description = "Thread group ID (i.e. process ID)", .flags = 0, },
+   [TGID] = { .name = "TGID", .title = "TGID", .description = "Thread group ID (i.e. process ID)", .flags = 0, .pidColumn = true, },
 #ifdef HAVE_OPENVZ
    [CTID] = { .name = "CTID", .title = " CTID    ", .description = "OpenVZ container ID (a.k.a. virtual environment ID)", .flags = PROCESS_FLAG_LINUX_OPENVZ, },
-   [VPID] = { .name = "VPID", .title = "    VPID ", .description = "OpenVZ process ID", .flags = PROCESS_FLAG_LINUX_OPENVZ, },
+   [VPID] = { .name = "VPID", .title = "VPID", .description = "OpenVZ process ID", .flags = PROCESS_FLAG_LINUX_OPENVZ, .pidColumn = true, },
 #endif
 #ifdef HAVE_VSERVER
    [VXID] = { .name = "VXID", .title = " VXID ", .description = "VServer process ID", .flags = PROCESS_FLAG_LINUX_VSERVER, },
@@ -105,9 +88,9 @@ ProcessFieldData Process_fields[] = {
    [OOM] = { .name = "OOM", .title = " OOM ", .description = "OOM (Out-of-Memory) killer score", .flags = PROCESS_FLAG_LINUX_OOM, },
    [IO_PRIORITY] = { .name = "IO_PRIORITY", .title = "IO ", .description = "I/O priority", .flags = PROCESS_FLAG_LINUX_IOPRIO, },
 #ifdef HAVE_DELAYACCT
-   [PERCENT_CPU_DELAY] = { .name = "PERCENT_CPU_DELAY", .title = "CPUD% ", .description = "CPU delay %", .flags = 0, },
-   [PERCENT_IO_DELAY] = { .name = "PERCENT_IO_DELAY", .title = "IOD% ", .description = "Block I/O delay %", .flags = 0, },
-   [PERCENT_SWAP_DELAY] = { .name = "PERCENT_SWAP_DELAY", .title = "SWAPD% ", .description = "Swapin delay %", .flags = 0, },
+   [PERCENT_CPU_DELAY] = { .name = "PERCENT_CPU_DELAY", .title = "CPUD% ", .description = "CPU delay %", .flags = PROCESS_FLAG_LINUX_DELAYACCT, },
+   [PERCENT_IO_DELAY] = { .name = "PERCENT_IO_DELAY", .title = "IOD% ", .description = "Block I/O delay %", .flags = PROCESS_FLAG_LINUX_DELAYACCT, },
+   [PERCENT_SWAP_DELAY] = { .name = "PERCENT_SWAP_DELAY", .title = "SWAPD% ", .description = "Swapin delay %", .flags = PROCESS_FLAG_LINUX_DELAYACCT, },
 #endif
    [M_PSS] = { .name = "M_PSS", .title = "  PSS ", .description = "proportional set size, same as M_RESIDENT but each page is divided by the number of processes sharing it.", .flags = PROCESS_FLAG_LINUX_SMAPS, },
    [M_SWAP] = { .name = "M_SWAP", .title = " SWAP ", .description = "Size of the process's swapped pages", .flags = PROCESS_FLAG_LINUX_SMAPS, },
@@ -117,20 +100,6 @@ ProcessFieldData Process_fields[] = {
    [PROC_COMM] = { .name = "COMM", .title = "COMM            ", .description = "comm string of the process from /proc/[pid]/comm", .flags = 0, },
    [PROC_EXE] = { .name = "EXE", .title = "EXE             ", .description = "Basename of exe of the process from /proc/[pid]/exe", .flags = 0, },
    [CWD] = { .name ="CWD", .title = "CWD                       ", .description = "The current working directory of the process", .flags = PROCESS_FLAG_LINUX_CWD, },
-   [LAST_PROCESSFIELD] = { .name = "*** report bug! ***", .title = NULL, .description = NULL, .flags = 0, },
-};
-
-ProcessPidColumn Process_pidColumns[] = {
-   { .id = PID, .label = "PID" },
-   { .id = PPID, .label = "PPID" },
-   #ifdef HAVE_OPENVZ
-   { .id = VPID, .label = "VPID" },
-   #endif
-   { .id = TPGID, .label = "TPGID" },
-   { .id = TGID, .label = "TGID" },
-   { .id = PGRP, .label = "PGRP" },
-   { .id = SESSION, .label = "SID" },
-   { .id = 0, .label = NULL },
 };
 
 /* This function returns the string displayed in Command column, so that sorting
@@ -183,6 +152,11 @@ static int LinuxProcess_effectiveIOPriority(const LinuxProcess* this) {
    return this->ioPriority;
 }
 
+#ifdef __ANDROID__
+#define SYS_ioprio_get __NR_ioprio_get
+#define SYS_ioprio_set __NR_ioprio_set
+#endif
+
 IOPriority LinuxProcess_updateIOPriority(LinuxProcess* this) {
    IOPriority ioprio = 0;
 // Other OSes masquerading as Linux (NetBSD?) don't have this syscall
@@ -224,12 +198,11 @@ static bool findCommInCmdline(const char *comm, const char *cmdline, int cmdline
    /* Try to find procComm in tokenized cmdline - this might in rare cases
     * mis-identify a string or fail, if comm or cmdline had been unsuitably
     * modified by the process */
-   const char *token;
    const char *tokenBase;
    size_t tokenLen;
    const size_t commLen = strlen(comm);
 
-   for (token = cmdline + cmdlineBasenameOffset; *token; ) {
+   for (const char *token = cmdline + cmdlineBasenameOffset; *token; ) {
       for (tokenBase = token; *token && *token != '\n'; ++token) {
          if (*token == '/') {
             tokenBase = token + 1;
@@ -394,6 +367,16 @@ void LinuxProcess_makeCommandStr(Process* this) {
    char *str = strStart;
 
    int cmdlineBasenameOffset = lp->procCmdlineBasenameOffset;
+   int cmdlineBasenameEnd = lp->procCmdlineBasenameEnd;
+
+   if (!cmdline) {
+      cmdlineBasenameOffset = 0;
+      cmdlineBasenameEnd = 0;
+      cmdline = "(zombie)";
+   }
+
+   assert(cmdlineBasenameOffset >= 0);
+   assert(cmdlineBasenameOffset <= (int)strlen(cmdline));
 
    if (!showMergedCommand || !procExe || !procComm) {    /* fall back to cmdline */
       if (showMergedCommand && !procExe && procComm && strlen(procComm)) {   /* Prefix column with comm */
@@ -411,11 +394,11 @@ void LinuxProcess_makeCommandStr(Process* this) {
       if (showProgramPath) {
          (void) stpcpyWithNewlineConversion(str, cmdline);
          mc->baseStart = cmdlineBasenameOffset;
-         mc->baseEnd = lp->procCmdlineBasenameEnd;
+         mc->baseEnd = cmdlineBasenameEnd;
       } else {
          (void) stpcpyWithNewlineConversion(str, cmdline + cmdlineBasenameOffset);
          mc->baseStart = 0;
-         mc->baseEnd = lp->procCmdlineBasenameEnd - cmdlineBasenameOffset;
+         mc->baseEnd = cmdlineBasenameEnd - cmdlineBasenameOffset;
       }
 
       if (mc->sep1) {
@@ -429,6 +412,9 @@ void LinuxProcess_makeCommandStr(Process* this) {
    int exeLen = lp->procExeLen;
    int exeBasenameOffset = lp->procExeBasenameOffset;
    int exeBasenameLen = exeLen - exeBasenameOffset;
+
+   assert(exeBasenameOffset >= 0);
+   assert(exeBasenameOffset <= (int)strlen(procExe));
 
    /* Start with copying exe */
    if (showProgramPath) {
@@ -536,36 +522,36 @@ static void LinuxProcess_writeCommand(const Process* this, int attr, int baseAtt
    if(lp->procExeDeleted)
       baseAttr = CRT_colors[FAILED_READ];
 
-   RichString_append(str, attr, lp->mergedCommand.str);
+   RichString_appendWide(str, attr, lp->mergedCommand.str);
 
    if (lp->mergedCommand.commEnd) {
       if (!lp->mergedCommand.separateComm && commStart == baseStart && highlightBaseName) {
          /* If it was matched with procExe's basename, make it bold if needed */
          if (commEnd > baseEnd) {
-            RichString_setAttrn(str, A_BOLD | baseAttr, baseStart, baseEnd - 1);
-            RichString_setAttrn(str, A_BOLD | commAttr, baseEnd, commEnd - 1);
+            RichString_setAttrn(str, A_BOLD | baseAttr, baseStart, baseEnd - baseStart);
+            RichString_setAttrn(str, A_BOLD | commAttr, baseEnd, commEnd - baseEnd);
          } else if (commEnd < baseEnd) {
-            RichString_setAttrn(str, A_BOLD | commAttr, commStart, commEnd - 1);
-            RichString_setAttrn(str, A_BOLD | baseAttr, commEnd, baseEnd - 1);
+            RichString_setAttrn(str, A_BOLD | commAttr, commStart, commEnd - commStart);
+            RichString_setAttrn(str, A_BOLD | baseAttr, commEnd, baseEnd - commEnd);
          } else {
             // Actually should be highlighted commAttr, but marked baseAttr to reduce visual noise
-            RichString_setAttrn(str, A_BOLD | baseAttr, commStart, commEnd - 1);
+            RichString_setAttrn(str, A_BOLD | baseAttr, commStart, commEnd - commStart);
          }
 
          baseStart = baseEnd;
       } else {
-         RichString_setAttrn(str, commAttr, commStart, commEnd - 1);
+         RichString_setAttrn(str, commAttr, commStart, commEnd - commStart);
       }
    }
 
    if (baseStart < baseEnd && highlightBaseName) {
-      RichString_setAttrn(str, baseAttr, baseStart, baseEnd - 1);
+      RichString_setAttrn(str, baseAttr, baseStart, baseEnd - baseStart);
    }
 
    if (mc->sep1)
-      RichString_setAttrn(str, CRT_colors[FAILED_READ], strStart + mc->sep1, strStart + mc->sep1);
+      RichString_setAttrn(str, CRT_colors[FAILED_READ], strStart + mc->sep1, 1);
    if (mc->sep2)
-      RichString_setAttrn(str, CRT_colors[FAILED_READ], strStart + mc->sep2, strStart + mc->sep2);
+      RichString_setAttrn(str, CRT_colors[FAILED_READ], strStart + mc->sep2, 1);
 }
 
 static void LinuxProcess_writeCommandField(const Process *this, RichString *str, char *buffer, int n, int attr) {
@@ -605,10 +591,11 @@ static void LinuxProcess_writeCommandField(const Process *this, RichString *str,
             buf = stpcpy(buf, "   ");
          }
       }
+
       n -= (buf - buffer);
-      const char* draw = CRT_treeStr[lastItem ? (this->settings->direction == 1 ? TREE_STR_BEND : TREE_STR_TEND) : TREE_STR_RTEE];
+      const char* draw = CRT_treeStr[lastItem ? TREE_STR_BEND : TREE_STR_RTEE];
       xSnprintf(buf, n, "%s%s ", draw, this->showChildren ? CRT_treeStr[TREE_STR_SHUT] : CRT_treeStr[TREE_STR_OPEN] );
-      RichString_append(str, CRT_colors[PROCESS_TREE], buffer);
+      RichString_appendWide(str, CRT_colors[PROCESS_TREE], buffer);
       LinuxProcess_writeCommand(this, attr, baseattr, str);
    }
 }
@@ -619,7 +606,7 @@ static void LinuxProcess_writeField(const Process* this, RichString* str, Proces
    char buffer[256]; buffer[255] = '\0';
    int attr = CRT_colors[DEFAULT_COLOR];
    size_t n = sizeof(buffer) - 1;
-   switch ((int)field) {
+   switch (field) {
    case TTY_NR: {
       if (lp->ttyDevice) {
          xSnprintf(buffer, n, "%-9s", lp->ttyDevice + 5 /* skip "/dev/" */);
@@ -631,19 +618,19 @@ static void LinuxProcess_writeField(const Process* this, RichString* str, Proces
    }
    case CMINFLT: Process_colorNumber(str, lp->cminflt, coloring); return;
    case CMAJFLT: Process_colorNumber(str, lp->cmajflt, coloring); return;
-   case M_DRS: Process_humanNumber(str, lp->m_drs * CRT_pageSizeKB, coloring); return;
-   case M_DT: Process_humanNumber(str, lp->m_dt * CRT_pageSizeKB, coloring); return;
+   case M_DRS: Process_humanNumber(str, lp->m_drs * pageSizeKB, coloring); return;
+   case M_DT: Process_humanNumber(str, lp->m_dt * pageSizeKB, coloring); return;
    case M_LRS:
       if (lp->m_lrs) {
-         Process_humanNumber(str, lp->m_lrs * CRT_pageSizeKB, coloring);
+         Process_humanNumber(str, lp->m_lrs * pageSizeKB, coloring);
          return;
       }
 
       attr = CRT_colors[PROCESS_SHADOW];
       xSnprintf(buffer, n, "  N/A ");
       break;
-   case M_TRS: Process_humanNumber(str, lp->m_trs * CRT_pageSizeKB, coloring); return;
-   case M_SHARE: Process_humanNumber(str, lp->m_share * CRT_pageSizeKB, coloring); return;
+   case M_TRS: Process_humanNumber(str, lp->m_trs * pageSizeKB, coloring); return;
+   case M_SHARE: Process_humanNumber(str, lp->m_share * pageSizeKB, coloring); return;
    case M_PSS: Process_humanNumber(str, lp->m_pss, coloring); return;
    case M_SWAP: Process_humanNumber(str, lp->m_swap, coloring); return;
    case M_PSSWP: Process_humanNumber(str, lp->m_psswp, coloring); return;
@@ -674,7 +661,7 @@ static void LinuxProcess_writeField(const Process* this, RichString* str, Proces
    }
    #ifdef HAVE_OPENVZ
    case CTID: xSnprintf(buffer, n, "%-8s ", lp->ctid ? lp->ctid : ""); break;
-   case VPID: xSnprintf(buffer, n, Process_pidFormat, lp->vpid); break;
+   case VPID: xSnprintf(buffer, n, "%*d ", Process_pidDigits, lp->vpid); break;
    #endif
    #ifdef HAVE_VSERVER
    case VXID: xSnprintf(buffer, n, "%5u ", lp->vxid); break;
@@ -720,59 +707,58 @@ static void LinuxProcess_writeField(const Process* this, RichString* str, Proces
       return;
    }
    case PROC_COMM: {
+      const char* procComm;
       if (lp->procComm) {
          attr = CRT_colors[Process_isUserlandThread(this) ? PROCESS_THREAD_COMM : PROCESS_COMM];
-         /* 15 being (TASK_COMM_LEN - 1) */
-         xSnprintf(buffer, n, "%-15.15s ", lp->procComm);
+         procComm = lp->procComm;
       } else {
          attr = CRT_colors[PROCESS_SHADOW];
-         xSnprintf(buffer, n, "%-15.15s ", Process_isKernelThread(lp) ? kthreadID : "N/A");
+         procComm = Process_isKernelThread(lp) ? kthreadID : "N/A";
       }
-      break;
+      /* 15 being (TASK_COMM_LEN - 1) */
+      Process_printLeftAlignedField(str, attr, procComm, 15);
+      return;
    }
    case PROC_EXE: {
+      const char* procExe;
       if (lp->procExe) {
          attr = CRT_colors[Process_isUserlandThread(this) ? PROCESS_THREAD_BASENAME : PROCESS_BASENAME];
          if (lp->procExeDeleted)
             attr = CRT_colors[FAILED_READ];
-         xSnprintf(buffer, n, "%-15.15s ", lp->procExe + lp->procExeBasenameOffset);
+         procExe = lp->procExe + lp->procExeBasenameOffset;
       } else {
          attr = CRT_colors[PROCESS_SHADOW];
-         xSnprintf(buffer, n, "%-15.15s ", Process_isKernelThread(lp) ? kthreadID : "N/A");
+         procExe = Process_isKernelThread(lp) ? kthreadID : "N/A";
       }
-      break;
+      Process_printLeftAlignedField(str, attr, procExe, 15);
+      return;
    }
-   case CWD:
+   case CWD: {
+      const char* cwd;
       if (!lp->cwd) {
-         xSnprintf(buffer, n, "%-25s ", "N/A");
          attr = CRT_colors[PROCESS_SHADOW];
+         cwd = "N/A";
       } else if (String_startsWith(lp->cwd, "/proc/") && strstr(lp->cwd, " (deleted)") != NULL) {
-         xSnprintf(buffer, n, "%-25s ", "main thread terminated");
          attr = CRT_colors[PROCESS_SHADOW];
+         cwd = "main thread terminated";
       } else {
-         xSnprintf(buffer, n, "%-25.25s ", lp->cwd);
+         cwd = lp->cwd;
       }
-      break;
+      Process_printLeftAlignedField(str, attr, cwd, 25);
+      return;
+   }
    default:
       Process_writeField(this, str, field);
       return;
    }
-   RichString_append(str, attr, buffer);
+   RichString_appendWide(str, attr, buffer);
 }
 
-static long LinuxProcess_compare(const void* v1, const void* v2) {
-   const LinuxProcess *p1, *p2;
-   const Settings *settings = ((const Process*)v1)->settings;
+static int LinuxProcess_compareByKey(const Process* v1, const Process* v2, ProcessField key) {
+   const LinuxProcess* p1 = (const LinuxProcess*)v1;
+   const LinuxProcess* p2 = (const LinuxProcess*)v2;
 
-   if (settings->direction == 1) {
-      p1 = (const LinuxProcess*)v1;
-      p2 = (const LinuxProcess*)v2;
-   } else {
-      p2 = (const LinuxProcess*)v1;
-      p1 = (const LinuxProcess*)v2;
-   }
-
-   switch ((int)settings->sortKey) {
+   switch (key) {
    case M_DRS:
       return SPACESHIP_NUMBER(p2->m_drs, p1->m_drs);
    case M_DT:
@@ -858,7 +844,7 @@ static long LinuxProcess_compare(const void* v1, const void* v2) {
    case CWD:
       return SPACESHIP_NULLSTR(p1->cwd, p2->cwd);
    default:
-      return Process_compare(v1, v2);
+      return Process_compareByKey_Base(v1, v2, key);
    }
 }
 
@@ -871,8 +857,9 @@ const ProcessClass LinuxProcess_class = {
       .extends = Class(Process),
       .display = Process_display,
       .delete = Process_delete,
-      .compare = LinuxProcess_compare
+      .compare = Process_compare
    },
    .writeField = LinuxProcess_writeField,
-   .getCommandStr = LinuxProcess_getCommandStr
+   .getCommandStr = LinuxProcess_getCommandStr,
+   .compareByKey = LinuxProcess_compareByKey
 };

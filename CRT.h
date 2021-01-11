@@ -16,26 +16,27 @@ in the source distribution for its full text.
 
 
 typedef enum TreeStr_ {
-   TREE_STR_HORZ,
    TREE_STR_VERT,
    TREE_STR_RTEE,
    TREE_STR_BEND,
    TREE_STR_TEND,
    TREE_STR_OPEN,
    TREE_STR_SHUT,
-   TREE_STR_COUNT
+   TREE_STR_ASC,
+   TREE_STR_DESC,
+   LAST_TREE_STR
 } TreeStr;
 
-typedef enum ColorSchemes_ {
-   COLORSCHEME_DEFAULT = 0,
+typedef enum ColorScheme_ {
+   COLORSCHEME_DEFAULT,
    COLORSCHEME_MONOCHROME,
    COLORSCHEME_BLACKONWHITE,
    COLORSCHEME_LIGHTTERMINAL,
    COLORSCHEME_MIDNIGHT,
    COLORSCHEME_BLACKNIGHT,
    COLORSCHEME_BROKENGRAY,
-   LAST_COLORSCHEME,
-} ColorSchemes;
+   LAST_COLORSCHEME
+} ColorScheme;
 
 typedef enum ColorElements_ {
    RESET_COLOR,
@@ -58,6 +59,7 @@ typedef enum ColorElements_ {
    METER_VALUE_IOWRITE,
    METER_VALUE_NOTICE,
    METER_VALUE_OK,
+   METER_VALUE_WARN,
    LED_COLOR,
    UPTIME,
    BATTERY,
@@ -144,20 +146,13 @@ extern const char* const* CRT_treeStr;
 
 extern const int* CRT_colors;
 
-extern int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT];
-
 extern int CRT_cursorX;
 
 extern int CRT_scrollHAmount;
 
 extern int CRT_scrollWheelVAmount;
 
-extern const char* CRT_termType;
-
-extern int CRT_colorScheme;
-
-extern long CRT_pageSize;
-extern long CRT_pageSizeKB;
+extern ColorScheme CRT_colorScheme;
 
 #ifdef HAVE_SETUID_ENABLED
 

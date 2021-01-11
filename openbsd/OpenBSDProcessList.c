@@ -8,7 +8,6 @@ in the source distribution for its full text.
 
 #include "OpenBSDProcessList.h"
 
-#include <err.h>
 #include <kvm.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -34,6 +33,8 @@ in the source distribution for its full text.
 
 
 static long fscale;
+static int pageSize;
+static int pageSizeKB;
 
 ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, uid_t userId) {
    const int mib[] = { CTL_HW, HW_NCPU };
@@ -55,8 +56,12 @@ ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, ui
 
    size = sizeof(fscale);
    if (sysctl(fmib, 2, &fscale, &size, NULL, 0) < 0) {
-      err(1, "fscale sysctl call failed");
+      CRT_fatalError("fscale sysctl call failed");
    }
+
+   if ((pageSize = sysconf(_SC_PAGESIZE)) == -1)
+      CRT_fatalError("pagesize sysconf call failed");
+   pageSizeKB = pageSize / ONE_K;
 
    for (int i = 0; i <= pl->cpuCount; i++) {
       CPUData* d = opl->cpus + i;
@@ -66,7 +71,7 @@ ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, ui
 
    opl->kd = kvm_openfiles(NULL, NULL, NULL, KVM_NO_FILES, errbuf);
    if (opl->kd == NULL) {
-      errx(1, "kvm_open: %s", errbuf);
+      CRT_fatalError("kvm_openfiles() failed");
    }
 
    return pl;
@@ -91,11 +96,11 @@ static void OpenBSDProcessList_scanMemoryInfo(ProcessList* pl) {
    size_t size_uvmexp = sizeof(uvmexp);
 
    if (sysctl(uvmexp_mib, 2, &uvmexp, &size_uvmexp, NULL, 0) < 0) {
-      err(1, "uvmexp sysctl call failed");
+      CRT_fatalError("uvmexp sysctl call failed");
    }
 
-   pl->totalMem = uvmexp.npages * CRT_pageSizeKB;
-   pl->usedMem = (uvmexp.npages - uvmexp.free - uvmexp.paging) * CRT_pageSizeKB;
+   pl->totalMem = uvmexp.npages * pageSizeKB;
+   pl->usedMem = (uvmexp.npages - uvmexp.free - uvmexp.paging) * pageSizeKB;
 
    // Taken from OpenBSD systat/iostat.c, top/machine.c and uvm_sysctl(9)
    const int bcache_mib[] = { CTL_VFS, VFS_GENERIC, VFS_BCACHESTAT };
@@ -103,10 +108,10 @@ static void OpenBSDProcessList_scanMemoryInfo(ProcessList* pl) {
    size_t size_bcstats = sizeof(bcstats);
 
    if (sysctl(bcache_mib, 3, &bcstats, &size_bcstats, NULL, 0) < 0) {
-      err(1, "cannot get vfs.bcachestat");
+      CRT_fatalError("cannot get vfs.bcachestat");
    }
 
-   pl->cachedMem = bcstats.numbufpages * CRT_pageSizeKB;
+   pl->cachedMem = bcstats.numbufpages * pageSizeKB;
 
    /*
     * Copyright (c) 1994 Thorsten Lockert <tholo@sigmasoft.com>
@@ -222,9 +227,9 @@ static void OpenBSDProcessList_scanProcs(OpenBSDProcessList* this) {
          }
       }
 
-      proc->m_virt = kproc->p_vm_dsize;
-      proc->m_resident = kproc->p_vm_rssize;
-      proc->percent_mem = (proc->m_resident * CRT_pageSizeKB) / (double)(this->super.totalMem) * 100.0;
+      proc->m_virt = kproc->p_vm_dsize * pageSizeKB;
+      proc->m_resident = kproc->p_vm_rssize * pageSizeKB;
+      proc->percent_mem = proc->m_resident / (double)(this->super.totalMem) * 100.0;
       proc->percent_cpu = CLAMP(getpcpu(kproc), 0.0, this->super.cpuCount * 100.0);
       //proc->nlwp = kproc->p_numthreads;
       proc->nice = kproc->p_nice - 20;

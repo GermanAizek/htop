@@ -49,8 +49,8 @@ static void printHelpFlag(void) {
          "-H --highlight-changes[=DELAY]  Highlight new and old processes\n"
          "-M --no-mouse                   Disable the mouse\n"
          "-p --pid=PID[,PID,PID...]       Show only the given PIDs\n"
-         "-s --sort-key=COLUMN            Sort by COLUMN (try --sort-key=help for a list)\n"
-         "-t --tree                       Show the tree view by default\n"
+         "-s --sort-key=COLUMN            Sort by COLUMN in list view (try --sort-key=help for a list)\n"
+         "-t --tree                       Show the tree view (can be combined with -s)\n"
          "-u --user[=USERNAME]            Show only processes for a given user (or $USER)\n"
          "-U --no-unicode                 Do not use unicode but plain ASCII\n"
          "-V --version                    Print version info\n"
@@ -93,7 +93,7 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
       .highlightDelaySecs = -1,
    };
 
-   static struct option long_opts[] =
+   const struct option long_opts[] =
    {
       {"help",       no_argument,         0, 'h'},
       {"version",    no_argument,         0, 'V'},
@@ -125,14 +125,14 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
          case 's':
             assert(optarg); /* please clang analyzer, cause optarg can be NULL in the 'u' case */
             if (String_eq(optarg, "help")) {
-               for (int j = 1; j < Platform_numberOfFields; j++) {
+               for (int j = 1; j < LAST_PROCESSFIELD; j++) {
                   const char* name = Process_fields[j].name;
                   if (name) printf ("%s\n", name);
                }
                exit(0);
             }
             flags.sortKey = 0;
-            for (int j = 1; j < Platform_numberOfFields; j++) {
+            for (int j = 1; j < LAST_PROCESSFIELD; j++) {
                if (Process_fields[j].name == NULL)
                   continue;
                if (String_eq(optarg, Process_fields[j].name)) {
@@ -204,6 +204,7 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
          }
          case 'F': {
             assert(optarg);
+            free(flags.commFilter);
             flags.commFilter = xStrdup(optarg);
 
             break;
@@ -298,9 +299,12 @@ int main(int argc, char** argv) {
    if (flags.highlightDelaySecs != -1)
       settings->highlightDelaySecs = flags.highlightDelaySecs;
    if (flags.sortKey > 0) {
-      settings->sortKey = flags.sortKey;
-      settings->treeView = false;
-      settings->direction = 1;
+      // -t -s <key> means "tree sorted by key"
+      // -s <key> means "list sorted by key" (previous existing behavior)
+      if (!flags.treeView) {
+         settings->treeView = false;
+      }
+      Settings_setSortKey(settings, flags.sortKey);
    }
 
    CRT_init(&(settings->delay), settings->colorScheme, flags.allowUnicode);
@@ -309,8 +313,6 @@ int main(int argc, char** argv) {
    ProcessList_setPanel(pl, (Panel*) panel);
 
    MainPanel_updateTreeFunctions(panel, settings->treeView);
-
-   ProcessList_printHeader(pl, Panel_getHeader((Panel*)panel));
 
    State state = {
       .settings = settings,

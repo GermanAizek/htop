@@ -104,7 +104,7 @@ static bool changePriority(MainPanel* panel, int delta) {
    return anyTagged;
 }
 
-static void addUserToVector(hkey_t key, void* userCast, void* panelCast) {
+static void addUserToVector(ht_key_t key, void* userCast, void* panelCast) {
    const char* user = userCast;
    Panel* panel = panelCast;
    Panel_add(panel, (Object*) ListItem_new(user, key));
@@ -158,20 +158,21 @@ static bool collapseIntoParent(Panel* panel) {
 }
 
 Htop_Reaction Action_setSortKey(Settings* settings, ProcessField sortKey) {
-   settings->sortKey = sortKey;
-   settings->direction = 1;
+   Settings_setSortKey(settings, sortKey);
    return HTOP_REFRESH | HTOP_SAVE_SETTINGS | HTOP_UPDATE_PANELHDR | HTOP_KEEP_FOLLOWING;
 }
 
-static Htop_Reaction sortBy(State* st) {
+// ----------------------------------------
+
+static Htop_Reaction actionSetSortColumn(State* st) {
    Htop_Reaction reaction = HTOP_OK;
-   Panel* sortPanel = Panel_new(0, 0, 0, 0, true, Class(ListItem), FunctionBar_newEnterEsc("Sort   ", "Cancel "));
+   Panel* sortPanel = Panel_new(0, 0, 0, 0, Class(ListItem), true, FunctionBar_newEnterEsc("Sort   ", "Cancel "));
    Panel_setHeader(sortPanel, "Sort by");
    ProcessField* fields = st->settings->fields;
    for (int i = 0; fields[i]; i++) {
       char* name = String_trim(Process_fields[fields[i]].name);
       Panel_add(sortPanel, (Object*) ListItem_new(name, fields[i]));
-      if (fields[i] == st->settings->sortKey)
+      if (fields[i] == Settings_getActiveSortKey(st->settings))
          Panel_setSelected(sortPanel, i);
 
       free(name);
@@ -188,12 +189,8 @@ static Htop_Reaction sortBy(State* st) {
    return reaction | HTOP_REFRESH | HTOP_REDRAW_BAR | HTOP_UPDATE_PANELHDR;
 }
 
-// ----------------------------------------
-
-static Htop_Reaction actionResize(State* st) {
-   clear();
-   Panel_resize(st->panel, COLS, LINES - (st->panel->y) - 1);
-   return HTOP_REDRAW_BAR;
+static Htop_Reaction actionSortByPID(State* st) {
+   return Action_setSortKey(st->settings, PID);
 }
 
 static Htop_Reaction actionSortByMemory(State* st) {
@@ -231,7 +228,7 @@ static Htop_Reaction actionToggleMergedCommand(State* st) {
 static Htop_Reaction actionToggleTreeView(State* st) {
    st->settings->treeView = !st->settings->treeView;
    if (st->settings->treeView) {
-      st->settings->direction = 1;
+      st->settings->treeDirection = 1;
    }
 
    ProcessList_expandTree(st->pl);
@@ -251,16 +248,6 @@ static Htop_Reaction actionIncSearch(State* st) {
    return HTOP_REFRESH | HTOP_KEEP_FOLLOWING;
 }
 
-static Htop_Reaction actionIncNext(State* st) {
-   IncSet_next(((MainPanel*)st->panel)->inc, INC_SEARCH, st->panel, (IncMode_GetPanelValue) MainPanel_getValue);
-   return HTOP_REFRESH | HTOP_KEEP_FOLLOWING;
-}
-
-static Htop_Reaction actionIncPrev(State* st) {
-   IncSet_prev(((MainPanel*)st->panel)->inc, INC_SEARCH, st->panel, (IncMode_GetPanelValue) MainPanel_getValue);
-   return HTOP_REFRESH | HTOP_KEEP_FOLLOWING;
-}
-
 static Htop_Reaction actionHigherPriority(State* st) {
    bool changed = changePriority((MainPanel*)st->panel, -1);
    return changed ? HTOP_REFRESH : HTOP_OK;
@@ -273,11 +260,9 @@ static Htop_Reaction actionLowerPriority(State* st) {
 
 static Htop_Reaction actionInvertSortOrder(State* st) {
    Settings_invertSortOrder(st->settings);
+   if (st->pauseProcessUpdate)
+      ProcessList_sort(st->pl);
    return HTOP_REFRESH | HTOP_SAVE_SETTINGS;
-}
-
-static Htop_Reaction actionSetSortColumn(State* st) {
-   return sortBy(st);
 }
 
 static Htop_Reaction actionExpandOrCollapse(State* st) {
@@ -340,7 +325,7 @@ static Htop_Reaction actionKill(State* st) {
    if (sgn) {
       if (sgn->key != 0) {
          Panel_setHeader(st->panel, "Sending...");
-         Panel_draw(st->panel, true, true);
+         Panel_draw(st->panel, false, true, true, State_hideFunctionBar(st));
          refresh();
          MainPanel_foreachProcess((MainPanel*)st->panel, Process_sendSignal, (Arg) { .i = sgn->key }, NULL);
          napms(500);
@@ -351,7 +336,7 @@ static Htop_Reaction actionKill(State* st) {
 }
 
 static Htop_Reaction actionFilterByUser(State* st) {
-   Panel* usersPanel = Panel_new(0, 0, 0, 0, true, Class(ListItem), FunctionBar_newEnterEsc("Show   ", "Cancel "));
+   Panel* usersPanel = Panel_new(0, 0, 0, 0, Class(ListItem), true, FunctionBar_newEnterEsc("Show   ", "Cancel "));
    Panel_setHeader(usersPanel, "Show processes of:");
    UsersTable_foreach(st->ut, addUserToVector, usersPanel);
    Vector_insertionSort(usersPanel->items);
@@ -371,7 +356,7 @@ static Htop_Reaction actionFilterByUser(State* st) {
 
 Htop_Reaction Action_follow(State* st) {
    st->pl->following = MainPanel_selectedPid((MainPanel*)st->panel);
-   Panel_setSelectionColor(st->panel, CRT_colors[PANEL_SELECTION_FOLLOW]);
+   Panel_setSelectionColor(st->panel, PANEL_SELECTION_FOLLOW);
    return HTOP_KEEP_FOLLOWING;
 }
 
@@ -460,8 +445,8 @@ static const struct {
    { .key = "      H: ", .info = "hide/show user process threads" },
    { .key = "      K: ", .info = "hide/show kernel threads" },
    { .key = "      F: ", .info = "cursor follows process" },
-   { .key = " F6 + -: ", .info = "expand/collapse tree" },
-   { .key = "  P M T: ", .info = "sort by CPU%, MEM% or TIME" },
+   { .key = "    + -: ", .info = "expand/collapse tree" },
+   { .key = "N P M T: ", .info = "sort by PID, CPU%, MEM% or TIME" },
    { .key = "      I: ", .info = "invert sort order" },
    { .key = " F6 > .: ", .info = "select sort column" },
    { .key = NULL, .info = NULL }
@@ -562,24 +547,24 @@ static Htop_Reaction actionHelp(State* st) {
    int item;
    for (item = 0; helpLeft[item].key; item++) {
       attrset(CRT_colors[DEFAULT_COLOR]);
-      mvaddstr(line + item, 9,  helpLeft[item].info);
+      mvaddstr(line + item, 10, helpLeft[item].info);
       attrset(CRT_colors[HELP_BOLD]);
-      mvaddstr(line + item, 0,  helpLeft[item].key);
+      mvaddstr(line + item, 1,  helpLeft[item].key);
       if (String_eq(helpLeft[item].key, "      H: ")) {
          attrset(CRT_colors[PROCESS_THREAD]);
-         mvaddstr(line + item, 32, "threads");
+         mvaddstr(line + item, 33, "threads");
       } else if (String_eq(helpLeft[item].key, "      K: ")) {
          attrset(CRT_colors[PROCESS_THREAD]);
-         mvaddstr(line + item, 26, "threads");
+         mvaddstr(line + item, 27, "threads");
       }
    }
    int leftHelpItems = item;
 
    for (item = 0; helpRight[item].key; item++) {
       attrset(CRT_colors[HELP_BOLD]);
-      mvaddstr(line + item, 40, helpRight[item].key);
+      mvaddstr(line + item, 41, helpRight[item].key);
       attrset(CRT_colors[DEFAULT_COLOR]);
-      mvaddstr(line + item, 49, helpRight[item].info);
+      mvaddstr(line + item, 50, helpRight[item].info);
    }
    line += MAXIMUM(leftHelpItems, item);
    line++;
@@ -638,60 +623,57 @@ static Htop_Reaction actionShowCommandScreen(State* st) {
 }
 
 void Action_setBindings(Htop_Action* keys) {
-   keys[KEY_RESIZE] = actionResize;
-   keys['M'] = actionSortByMemory;
-   keys['T'] = actionSortByTime;
-   keys['P'] = actionSortByCPU;
-   keys['H'] = actionToggleUserlandThreads;
-   keys['K'] = actionToggleKernelThreads;
-   keys['p'] = actionToggleProgramPath;
-   keys['m'] = actionToggleMergedCommand;
-   keys['t'] = actionToggleTreeView;
-   keys[KEY_F(5)] = actionToggleTreeView;
-   keys[KEY_F(4)] = actionIncFilter;
-   keys['\\'] = actionIncFilter;
-   keys[KEY_F(3)] = actionIncSearch;
-   keys['/'] = actionIncSearch;
-   keys['n'] = actionIncNext;
-   keys['N'] = actionIncPrev;
-
-   keys[']'] = actionHigherPriority;
-   keys[KEY_F(7)] = actionHigherPriority;
-   keys['['] = actionLowerPriority;
-   keys[KEY_F(8)] = actionLowerPriority;
-   keys['I'] = actionInvertSortOrder;
-   keys[KEY_F(6)] = actionSetSortColumn;
-   keys[KEY_F(18)] = actionExpandCollapseOrSortColumn;
-   keys['<'] = actionSetSortColumn;
-   keys[','] = actionSetSortColumn;
-   keys['>'] = actionSetSortColumn;
-   keys['.'] = actionSetSortColumn;
-   keys[KEY_F(10)] = actionQuit;
-   keys['q'] = actionQuit;
-   keys['a'] = actionSetAffinity;
-   keys[KEY_F(9)] = actionKill;
-   keys['k'] = actionKill;
-   keys[KEY_RECLICK] = actionExpandOrCollapse;
-   keys['+'] = actionExpandOrCollapse;
-   keys['='] = actionExpandOrCollapse;
-   keys['-'] = actionExpandOrCollapse;
-   keys['\177'] = actionCollapseIntoParent;
-   keys['u'] = actionFilterByUser;
-   keys['F'] = Action_follow;
-   keys['S'] = actionSetup;
-   keys['C'] = actionSetup;
-   keys[KEY_F(2)] = actionSetup;
-   keys['x'] = actionShowLocks;
-   keys['l'] = actionLsof;
-   keys['s'] = actionStrace;
    keys[' '] = actionTag;
-   keys['\014'] = actionRedraw; // Ctrl+L
-   keys[KEY_F(1)] = actionHelp;
-   keys['h'] = actionHelp;
+   keys['+'] = actionExpandOrCollapse;
+   keys[','] = actionSetSortColumn;
+   keys['-'] = actionExpandOrCollapse;
+   keys['.'] = actionSetSortColumn;
+   keys['/'] = actionIncSearch;
+   keys['<'] = actionSetSortColumn;
+   keys['='] = actionExpandOrCollapse;
+   keys['>'] = actionSetSortColumn;
    keys['?'] = actionHelp;
+   keys['C'] = actionSetup;
+   keys['F'] = Action_follow;
+   keys['H'] = actionToggleUserlandThreads;
+   keys['I'] = actionInvertSortOrder;
+   keys['K'] = actionToggleKernelThreads;
+   keys['M'] = actionSortByMemory;
+   keys['N'] = actionSortByPID;
+   keys['P'] = actionSortByCPU;
+   keys['S'] = actionSetup;
+   keys['T'] = actionSortByTime;
    keys['U'] = actionUntagAll;
+   keys['Z'] = actionTogglePauseProcessUpdate;
+   keys['['] = actionLowerPriority;
+   keys['\014'] = actionRedraw; // Ctrl+L
+   keys['\177'] = actionCollapseIntoParent;
+   keys['\\'] = actionIncFilter;
+   keys[']'] = actionHigherPriority;
+   keys['a'] = actionSetAffinity;
    keys['c'] = actionTagAllChildren;
    keys['e'] = actionShowEnvScreen;
+   keys['h'] = actionHelp;
+   keys['k'] = actionKill;
+   keys['l'] = actionLsof;
+   keys['m'] = actionToggleMergedCommand;
+   keys['p'] = actionToggleProgramPath;
+   keys['q'] = actionQuit;
+   keys['s'] = actionStrace;
+   keys['t'] = actionToggleTreeView;
+   keys['u'] = actionFilterByUser;
    keys['w'] = actionShowCommandScreen;
-   keys['Z'] = actionTogglePauseProcessUpdate;
+   keys['x'] = actionShowLocks;
+   keys[KEY_F(1)] = actionHelp;
+   keys[KEY_F(2)] = actionSetup;
+   keys[KEY_F(3)] = actionIncSearch;
+   keys[KEY_F(4)] = actionIncFilter;
+   keys[KEY_F(5)] = actionToggleTreeView;
+   keys[KEY_F(6)] = actionSetSortColumn;
+   keys[KEY_F(7)] = actionHigherPriority;
+   keys[KEY_F(8)] = actionLowerPriority;
+   keys[KEY_F(9)] = actionKill;
+   keys[KEY_F(10)] = actionQuit;
+   keys[KEY_F(18)] = actionExpandCollapseOrSortColumn;
+   keys[KEY_RECLICK] = actionExpandOrCollapse;
 }

@@ -10,8 +10,8 @@ in the source distribution for its full text.
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
+#include "Compat.h"
 #include "CRT.h"
 #include "Hashtable.h"
 #include "Macros.h"
@@ -79,22 +79,48 @@ void ProcessList_setPanel(ProcessList* this, Panel* panel) {
    this->panel = panel;
 }
 
+static const char* alignedProcessFieldTitle(ProcessField field) {
+   const char* title = Process_fields[field].title;
+   if (!title)
+      return "- ";
+
+   if (!Process_fields[field].pidColumn)
+      return title;
+
+   static char titleBuffer[PROCESS_MAX_PID_DIGITS + /* space */ 1 + /* null-terminator */ + 1];
+   xSnprintf(titleBuffer, sizeof(titleBuffer), "%*s ", Process_pidDigits, title);
+
+   return titleBuffer;
+}
+
 void ProcessList_printHeader(ProcessList* this, RichString* header) {
    RichString_prune(header);
 
-   const ProcessField* fields = this->settings->fields;
+   const Settings* settings = this->settings;
+   const ProcessField* fields = settings->fields;
+
+   ProcessField key = Settings_getActiveSortKey(settings);
 
    for (int i = 0; fields[i]; i++) {
-      const char* field = Process_fields[fields[i]].title;
-      if (!field) {
-         field = "- ";
+      int color;
+      if (settings->treeView && settings->treeViewAlwaysByPID) {
+         color = CRT_colors[PANEL_HEADER_FOCUS];
+      } else if (key == fields[i]) {
+         color = CRT_colors[PANEL_SELECTION_FOCUS];
+      } else {
+         color = CRT_colors[PANEL_HEADER_FOCUS];
       }
 
-      int color = (this->settings->sortKey == fields[i]) ?
-         CRT_colors[PANEL_SELECTION_FOCUS] : CRT_colors[PANEL_HEADER_FOCUS];
-      RichString_append(header, color, field);
-      if (COMM == fields[i] && this->settings->showMergedCommand) {
-         RichString_append(header, color, "(merged)");
+      RichString_appendWide(header, color, alignedProcessFieldTitle(fields[i]));
+      if (key == fields[i] && RichString_getCharVal(*header, RichString_size(header) - 1) == ' ') {
+         header->chlen--;  // rewind to override space
+         RichString_appendnWide(header,
+                                CRT_colors[PANEL_SELECTION_FOCUS],
+                                CRT_treeStr[Settings_getActiveDirection(this->settings) == 1 ? TREE_STR_DESC : TREE_STR_ASC],
+                                1);
+      }
+      if (COMM == fields[i] && settings->showMergedCommand) {
+         RichString_appendAscii(header, color, "(merged)");
       }
    }
 }
@@ -122,7 +148,7 @@ void ProcessList_remove(ProcessList* this, Process* p) {
    Process* pp = Hashtable_remove(this->processTable, p->pid);
    assert(pp == p); (void)pp;
 
-   unsigned int pid = p->pid;
+   pid_t pid = p->pid;
    int idx = Vector_indexOf(this->processes, p, Process_pidCompare);
    assert(idx != -1);
 
@@ -130,7 +156,12 @@ void ProcessList_remove(ProcessList* this, Process* p) {
       Vector_remove(this->processes, idx);
    }
 
-   assert(Hashtable_get(this->processTable, pid) == NULL); (void)pid;
+   if (this->following != -1 && this->following == pid) {
+      this->following = -1;
+      Panel_setSelectionColor(this->panel, PANEL_SELECTION_FOCUS);
+   }
+
+   assert(Hashtable_get(this->processTable, pid) == NULL);
    assert(Hashtable_count(this->processTable) == Vector_count(this->processes));
 }
 
@@ -149,7 +180,7 @@ int ProcessList_size(ProcessList* this) {
 //
 // The algorithm is based on `depth-first search`,
 // even though `breadth-first search` approach may be more efficient on first glance,
-// after comparision it may be not, as it's not safe to go deeper without first updating the tree structure.
+// after comparison it may be not, as it's not safe to go deeper without first updating the tree structure.
 // If it would be safe that approach would likely bring an advantage in performance.
 //
 // Each call of the function looks for a 'layer'. A 'layer' is a list of processes with the same depth.
@@ -329,14 +360,14 @@ static void ProcessList_buildTreeBranch(ProcessList* this, pid_t pid, int level,
    Vector_delete(children);
 }
 
-static long ProcessList_treeProcessCompare(const void* v1, const void* v2) {
+static int ProcessList_treeProcessCompare(const void* v1, const void* v2) {
    const Process *p1 = (const Process*)v1;
    const Process *p2 = (const Process*)v2;
 
    return SPACESHIP_NUMBER(p1->tree_left, p2->tree_left);
 }
 
-static long ProcessList_treeProcessCompareByPID(const void* v1, const void* v2) {
+static int ProcessList_treeProcessCompareByPID(const void* v1, const void* v2) {
    const Process *p1 = (const Process*)v1;
    const Process *p2 = (const Process*)v2;
 
@@ -347,7 +378,7 @@ static long ProcessList_treeProcessCompareByPID(const void* v1, const void* v2) 
 static void ProcessList_buildTree(ProcessList* this) {
    int node_counter = 1;
    int node_index = 0;
-   int direction = this->settings->direction;
+   int direction = Settings_getActiveDirection(this->settings);
 
    // Sort by PID
    Vector_quickSortCustomCompare(this->processes, ProcessList_treeProcessCompareByPID);
@@ -446,12 +477,7 @@ ProcessField ProcessList_keyAt(const ProcessList* this, int at) {
    const ProcessField* fields = this->settings->fields;
    ProcessField field;
    for (int i = 0; (field = fields[i]); i++) {
-      const char* title = Process_fields[field].title;
-      if (!title) {
-         title = "- ";
-      }
-
-      int len = strlen(title);
+      int len = strlen(alignedProcessFieldTitle(field));
       if (at >= x && at <= x + len) {
          return field;
       }
@@ -472,30 +498,26 @@ void ProcessList_rebuildPanel(ProcessList* this) {
    const char* incFilter = this->incFilter;
 
    int currPos = Panel_getSelectedIndex(this->panel);
-   pid_t currPid = this->following != -1 ? this->following : 0;
    int currScrollV = this->panel->scrollV;
 
    Panel_prune(this->panel);
    int size = ProcessList_size(this);
    int idx = 0;
    for (int i = 0; i < size; i++) {
-      bool hidden = false;
       Process* p = ProcessList_get(this, i);
 
       if ( (!p->show)
          || (this->userId != (uid_t) -1 && (p->st_uid != this->userId))
          || (incFilter && !(String_contains_i(Process_getCommand(p), incFilter)))
          || (this->pidMatchList && !Hashtable_get(this->pidMatchList, p->tgid)) )
-         hidden = true;
+         continue;
 
-      if (!hidden) {
-         Panel_set(this->panel, idx, (Object*)p);
-         if ((this->following == -1 && idx == currPos) || (this->following != -1 && p->pid == currPid)) {
-            Panel_setSelected(this->panel, idx);
-            this->panel->scrollV = currScrollV;
-         }
-         idx++;
+      Panel_set(this->panel, idx, (Object*)p);
+      if ((this->following == -1 && idx == currPos) || (this->following != -1 && p->pid == this->following)) {
+         Panel_setSelected(this->panel, idx);
+         this->panel->scrollV = currScrollV;
       }
+      idx++;
    }
 }
 
@@ -541,8 +563,10 @@ void ProcessList_scan(ProcessList* this, bool pauseProcessUpdate) {
    if (!firstScanDone) {
       this->scanTs = 0;
       firstScanDone = true;
-   } else if (clock_gettime(CLOCK_MONOTONIC, &now) == 0) {
-      this->scanTs = now.tv_sec;
+   } else if (Compat_clock_monotonic_gettime(&now) == 0) {
+      // save time in millisecond, so with a delay in deciseconds
+      // there are no irregularities
+      this->scanTs = 1000 * now.tv_sec + now.tv_nsec / 1000000;
    }
 
    ProcessList_goThroughEntries(this, false);
@@ -558,7 +582,7 @@ void ProcessList_scan(ProcessList* this, bool pauseProcessUpdate) {
          // process no longer exists
          if (this->settings->highlightChanges && p->wasShown) {
             // mark tombed
-            p->tombTs = this->scanTs + this->settings->highlightDelaySecs;
+            p->tombTs = this->scanTs + 1000 * this->settings->highlightDelaySecs;
          } else {
             // immediately remove
             ProcessList_remove(this, p);

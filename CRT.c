@@ -41,28 +41,33 @@ in the source distribution for its full text.
 #define ColorPairGrayBlack  ColorPair(Magenta,Magenta)
 #define ColorIndexGrayBlack ColorIndex(Magenta,Magenta)
 
-static const char* const CRT_treeStrAscii[TREE_STR_COUNT] = {
-   "-", // TREE_STR_HORZ
-   "|", // TREE_STR_VERT
-   "`", // TREE_STR_RTEE
-   "`", // TREE_STR_BEND
-   ",", // TREE_STR_TEND
-   "+", // TREE_STR_OPEN
-   "-", // TREE_STR_SHUT
+#define ColorPairWhiteDefault  ColorPair(Red, Red)
+#define ColorIndexWhiteDefault ColorIndex(Red, Red)
+
+static const char* const CRT_treeStrAscii[LAST_TREE_STR] = {
+   [TREE_STR_VERT] = "|",
+   [TREE_STR_RTEE] = "`",
+   [TREE_STR_BEND] = "`",
+   [TREE_STR_TEND] = ",",
+   [TREE_STR_OPEN] = "+",
+   [TREE_STR_SHUT] = "-",
+   [TREE_STR_ASC]  = "+",
+   [TREE_STR_DESC] = "-",
 };
 
 #ifdef HAVE_LIBNCURSESW
 
-static const char* const CRT_treeStrUtf8[TREE_STR_COUNT] = {
-   "\xe2\x94\x80", // TREE_STR_HORZ ─
-   "\xe2\x94\x82", // TREE_STR_VERT │
-   "\xe2\x94\x9c", // TREE_STR_RTEE ├
-   "\xe2\x94\x94", // TREE_STR_BEND └
-   "\xe2\x94\x8c", // TREE_STR_TEND ┌
-   "+",            // TREE_STR_OPEN +, TODO use 🮯 'BOX DRAWINGS LIGHT HORIZONTAL
-                   // WITH VERTICAL STROKE' (U+1FBAF, "\xf0\x9f\xae\xaf") when
-                   // Unicode 13 is common
-   "\xe2\x94\x80", // TREE_STR_SHUT ─
+static const char* const CRT_treeStrUtf8[LAST_TREE_STR] = {
+   [TREE_STR_VERT] = "\xe2\x94\x82", // │
+   [TREE_STR_RTEE] = "\xe2\x94\x9c", // ├
+   [TREE_STR_BEND] = "\xe2\x94\x94", // └
+   [TREE_STR_TEND] = "\xe2\x94\x8c", // ┌
+   [TREE_STR_OPEN] = "+",            // +, TODO use 🮯 'BOX DRAWINGS LIGHT HORIZONTAL
+                                     // WITH VERTICAL STROKE' (U+1FBAF, "\xf0\x9f\xae\xaf") when
+                                     // Unicode 13 is common
+   [TREE_STR_SHUT] = "\xe2\x94\x80", // ─
+   [TREE_STR_ASC]  = "\xe2\x96\xb3", // △
+   [TREE_STR_DESC] = "\xe2\x96\xbd", // ▽
 };
 
 bool CRT_utf8 = false;
@@ -92,7 +97,7 @@ static const char* initDegreeSign(void) {
 
 const int* CRT_colors;
 
-int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
+static int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
    [COLORSCHEME_DEFAULT] = {
       [RESET_COLOR] = ColorPair(White, Black),
       [DEFAULT_COLOR] = ColorPair(White, Black),
@@ -116,6 +121,7 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [METER_VALUE_IOWRITE] = ColorPair(Blue, Black),
       [METER_VALUE_NOTICE] = A_BOLD | ColorPair(White, Black),
       [METER_VALUE_OK] = ColorPair(Green, Black),
+      [METER_VALUE_WARN] = A_BOLD | ColorPair(Yellow, Black),
       [LED_COLOR] = ColorPair(Green, Black),
       [TASKS_RUNNING] = A_BOLD | ColorPair(Green, Black),
       [PROCESS] = A_NORMAL,
@@ -200,6 +206,7 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [METER_VALUE_IOWRITE] = A_NORMAL,
       [METER_VALUE_NOTICE] = A_BOLD,
       [METER_VALUE_OK] = A_NORMAL,
+      [METER_VALUE_WARN] = A_BOLD,
       [LED_COLOR] = A_NORMAL,
       [TASKS_RUNNING] = A_BOLD,
       [PROCESS] = A_NORMAL,
@@ -284,6 +291,7 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [METER_VALUE_IOWRITE] = ColorPair(Yellow, White),
       [METER_VALUE_NOTICE] = A_BOLD | ColorPair(Yellow, White),
       [METER_VALUE_OK] = ColorPair(Green, White),
+      [METER_VALUE_WARN] = A_BOLD | ColorPair(Yellow, White),
       [LED_COLOR] = ColorPair(Green, White),
       [TASKS_RUNNING] = ColorPair(Green, White),
       [PROCESS] = ColorPair(Black, White),
@@ -346,10 +354,10 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [ZRAM] = ColorPair(Yellow, White)
    },
    [COLORSCHEME_LIGHTTERMINAL] = {
-      [RESET_COLOR] = ColorPair(Blue, Black),
-      [DEFAULT_COLOR] = ColorPair(Blue, Black),
+      [RESET_COLOR] = ColorPair(Black, Black),
+      [DEFAULT_COLOR] = ColorPair(Black, Black),
       [FUNCTION_BAR] = ColorPair(Black, Cyan),
-      [FUNCTION_KEY] = ColorPair(Blue, Black),
+      [FUNCTION_KEY] = ColorPair(Black, Black),
       [PANEL_HEADER_FOCUS] = ColorPair(Black, Green),
       [PANEL_HEADER_UNFOCUS] = ColorPair(Black, Green),
       [PANEL_SELECTION_FOCUS] = ColorPair(Black, Cyan),
@@ -362,17 +370,18 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [BATTERY] = ColorPair(Yellow, Black),
       [LARGE_NUMBER] = ColorPair(Red, Black),
       [METER_TEXT] = ColorPair(Blue, Black),
-      [METER_VALUE] = ColorPair(Blue, Black),
+      [METER_VALUE] = ColorPair(Black, Black),
       [METER_VALUE_ERROR] = A_BOLD | ColorPair(Red, Black),
       [METER_VALUE_IOREAD] = ColorPair(Green, Black),
       [METER_VALUE_IOWRITE] = ColorPair(Yellow, Black),
-      [METER_VALUE_NOTICE] = A_BOLD | ColorPair(Yellow, Black),
+      [METER_VALUE_NOTICE] = A_BOLD | ColorPairWhiteDefault,
       [METER_VALUE_OK] = ColorPair(Green, Black),
+      [METER_VALUE_WARN] = A_BOLD | ColorPair(Yellow, Black),
       [LED_COLOR] = ColorPair(Green, Black),
       [TASKS_RUNNING] = ColorPair(Green, Black),
-      [PROCESS] = ColorPair(Blue, Black),
+      [PROCESS] = ColorPair(Black, Black),
       [PROCESS_SHADOW] = A_BOLD | ColorPairGrayBlack,
-      [PROCESS_TAG] = ColorPair(Yellow, Blue),
+      [PROCESS_TAG] = ColorPair(White, Blue),
       [PROCESS_MEGABYTES] = ColorPair(Blue, Black),
       [PROCESS_GIGABYTES] = ColorPair(Green, Black),
       [PROCESS_BASENAME] = ColorPair(Green, Black),
@@ -396,34 +405,34 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [MEMORY_BUFFERS] = ColorPair(Cyan, Black),
       [MEMORY_BUFFERS_TEXT] = ColorPair(Cyan, Black),
       [MEMORY_CACHE] = ColorPair(Yellow, Black),
-      [LOAD_AVERAGE_FIFTEEN] = ColorPair(Blue, Black),
-      [LOAD_AVERAGE_FIVE] = ColorPair(Blue, Black),
-      [LOAD_AVERAGE_ONE] = ColorPair(Yellow, Black),
-      [LOAD] = ColorPair(Yellow, Black),
+      [LOAD_AVERAGE_FIFTEEN] = ColorPair(Black, Black),
+      [LOAD_AVERAGE_FIVE] = ColorPair(Black, Black),
+      [LOAD_AVERAGE_ONE] = ColorPair(Black, Black),
+      [LOAD] = ColorPairWhiteDefault,
       [HELP_BOLD] = ColorPair(Blue, Black),
-      [CLOCK] = ColorPair(Yellow, Black),
-      [DATE] = ColorPair(White, Black),
-      [DATETIME] = ColorPair(White, Black),
+      [CLOCK] = ColorPairWhiteDefault,
+      [DATE] = ColorPairWhiteDefault,
+      [DATETIME] = ColorPairWhiteDefault,
       [CHECK_BOX] = ColorPair(Blue, Black),
-      [CHECK_MARK] = ColorPair(Blue, Black),
-      [CHECK_TEXT] = ColorPair(Blue, Black),
-      [HOSTNAME] = ColorPair(Yellow, Black),
+      [CHECK_MARK] = ColorPair(Black, Black),
+      [CHECK_TEXT] = ColorPair(Black, Black),
+      [HOSTNAME] = ColorPairWhiteDefault,
       [CPU_NICE] = ColorPair(Cyan, Black),
       [CPU_NICE_TEXT] = ColorPair(Cyan, Black),
       [CPU_NORMAL] = ColorPair(Green, Black),
       [CPU_SYSTEM] = ColorPair(Red, Black),
-      [CPU_IOWAIT] = A_BOLD | ColorPair(Blue, Black),
+      [CPU_IOWAIT] = A_BOLD | ColorPair(Black, Black),
       [CPU_IRQ] = A_BOLD | ColorPair(Blue, Black),
       [CPU_SOFTIRQ] = ColorPair(Blue, Black),
-      [CPU_STEAL] = ColorPair(Blue, Black),
-      [CPU_GUEST] = ColorPair(Blue, Black),
-      [PRESSURE_STALL_THREEHUNDRED] = ColorPair(Blue, Black),
-      [PRESSURE_STALL_SIXTY] = ColorPair(Blue, Black),
-      [PRESSURE_STALL_TEN] = ColorPair(Blue, Black),
+      [CPU_STEAL] = ColorPair(Black, Black),
+      [CPU_GUEST] = ColorPair(Black, Black),
+      [PRESSURE_STALL_THREEHUNDRED] = ColorPair(Black, Black),
+      [PRESSURE_STALL_SIXTY] = ColorPair(Black, Black),
+      [PRESSURE_STALL_TEN] = ColorPair(Black, Black),
       [ZFS_MFU] = ColorPair(Cyan, Black),
       [ZFS_MRU] = ColorPair(Yellow, Black),
       [ZFS_ANON] = A_BOLD | ColorPair(Magenta, Black),
-      [ZFS_HEADER] = ColorPair(Blue, Black),
+      [ZFS_HEADER] = ColorPair(Black, Black),
       [ZFS_OTHER] = A_BOLD | ColorPair(Magenta, Black),
       [ZFS_COMPRESSED] = ColorPair(Cyan, Black),
       [ZFS_RATIO] = A_BOLD | ColorPair(Magenta, Black),
@@ -452,6 +461,7 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [METER_VALUE_IOWRITE] = ColorPair(Black, Blue),
       [METER_VALUE_NOTICE] = A_BOLD | ColorPair(White, Blue),
       [METER_VALUE_OK] = ColorPair(Green, Blue),
+      [METER_VALUE_WARN] = A_BOLD | ColorPair(Yellow, Black),
       [LED_COLOR] = ColorPair(Green, Blue),
       [TASKS_RUNNING] = A_BOLD | ColorPair(Green, Blue),
       [PROCESS] = ColorPair(White, Blue),
@@ -534,8 +544,9 @@ int CRT_colorSchemes[LAST_COLORSCHEME][LAST_COLORELEMENT] = {
       [METER_VALUE_ERROR] = A_BOLD | ColorPair(Red, Black),
       [METER_VALUE_IOREAD] = ColorPair(Green, Black),
       [METER_VALUE_IOWRITE] = ColorPair(Blue, Black),
-      [METER_VALUE_NOTICE] = A_BOLD | ColorPair(Yellow, Black),
+      [METER_VALUE_NOTICE] = A_BOLD | ColorPair(White, Black),
       [METER_VALUE_OK] = ColorPair(Green, Black),
+      [METER_VALUE_WARN] = A_BOLD | ColorPair(Yellow, Black),
       [LED_COLOR] = ColorPair(Green, Black),
       [TASKS_RUNNING] = A_BOLD | ColorPair(Green, Black),
       [PROCESS] = ColorPair(Cyan, Black),
@@ -604,12 +615,7 @@ int CRT_scrollHAmount = 5;
 
 int CRT_scrollWheelVAmount = 10;
 
-const char* CRT_termType;
-
-int CRT_colorScheme = 0;
-
-long CRT_pageSize = -1;
-long CRT_pageSizeKB = -1;
+ColorScheme CRT_colorScheme = COLORSCHEME_DEFAULT;
 
 ATTR_NORETURN
 static void CRT_handleSIGTERM(int sgn) {
@@ -676,14 +682,14 @@ void CRT_init(const int* delay, int colorScheme, bool allowUnicode) {
       start_color();
    }
 
-   CRT_termType = getenv("TERM");
-   if (String_eq(CRT_termType, "linux")) {
+   const char* termType = getenv("TERM");
+   if (termType && String_eq(termType, "linux")) {
       CRT_scrollHAmount = 20;
    } else {
       CRT_scrollHAmount = 5;
    }
 
-   if (String_startsWith(CRT_termType, "xterm") || String_eq(CRT_termType, "vt220")) {
+   if (termType && (String_startsWith(termType, "xterm") || String_eq(termType, "vt220"))) {
       define_key("\033[H", KEY_HOME);
       define_key("\033[F", KEY_END);
       define_key("\033[7~", KEY_HOME);
@@ -696,6 +702,7 @@ void CRT_init(const int* delay, int colorScheme, bool allowUnicode) {
       define_key("\033[12~", KEY_F(2));
       define_key("\033[13~", KEY_F(3));
       define_key("\033[14~", KEY_F(4));
+      define_key("\033[14;2~", KEY_F(15));
       define_key("\033[17;2~", KEY_F(18));
       char sequence[3] = "\033a";
       for (char c = 'a'; c <= 'z'; c++) {
@@ -746,11 +753,6 @@ void CRT_init(const int* delay, int colorScheme, bool allowUnicode) {
    mousemask(BUTTON1_RELEASED, NULL);
 #endif
 
-   CRT_pageSize = sysconf(_SC_PAGESIZE);
-   if (CRT_pageSize == -1)
-      CRT_fatalError("Fatal error: Can not get PAGE_SIZE by sysconf(_SC_PAGESIZE)");
-   CRT_pageSizeKB = CRT_pageSize / 1024;
-
    CRT_degreeSign = initDegreeSign();
 }
 
@@ -760,7 +762,7 @@ void CRT_done() {
 }
 
 void CRT_fatalError(const char* note) {
-   char* sysMsg = strerror(errno);
+   const char* sysMsg = strerror(errno);
    CRT_done();
    fprintf(stderr, "%s: %s\n", note, sysMsg);
    exit(2);
@@ -790,7 +792,7 @@ void CRT_setColors(int colorScheme) {
 
    for (short int i = 0; i < 8; i++) {
       for (short int j = 0; j < 8; j++) {
-         if (ColorIndex(i, j) != ColorIndexGrayBlack) {
+         if (ColorIndex(i, j) != ColorIndexGrayBlack && ColorIndex(i, j) != ColorIndexWhiteDefault) {
             short int bg = (colorScheme != COLORSCHEME_BLACKNIGHT)
                      ? (j == 0 ? -1 : j)
                      : j;
@@ -802,6 +804,8 @@ void CRT_setColors(int colorScheme) {
    short int grayBlackFg = COLORS > 8 ? 8 : 0;
    short int grayBlackBg = (colorScheme != COLORSCHEME_BLACKNIGHT) ? -1 : 0;
    init_pair(ColorIndexGrayBlack, grayBlackFg, grayBlackBg);
+
+   init_pair(ColorIndexWhiteDefault, White, -1);
 
    CRT_colors = CRT_colorSchemes[colorScheme];
 }
@@ -819,9 +823,13 @@ void CRT_handleSIGSEGV(int signal) {
       "- Your OS and kernel version (uname -a)\n"
       "- Your distribution and release (lsb_release -a)\n"
       "- Likely steps to reproduce (How did it happened?)\n"
+   );
+
 #ifdef HAVE_EXECINFO_H
-      "- Backtrace of the issue (see below)\n"
+   fprintf(stderr, "- Backtrace of the issue (see below)\n");
 #endif
+
+   fprintf(stderr,
       "\n"
    );
 
@@ -856,11 +864,15 @@ void CRT_handleSIGSEGV(int signal) {
       "you should provide a disassembly of your binary.\n"
       "This can usually be done by running the following command:\n"
       "\n"
+   );
+
 #ifdef HTOP_DARWIN
-      "   otool -tvV `which htop` > ~/htop.otool\n"
+   fprintf(stderr, "   otool -tvV `which htop` > ~/htop.otool\n");
 #else
-      "   objdump -d -S -w `which htop` > ~/htop.objdump\n"
+   fprintf(stderr, "   objdump -d -S -w `which htop` > ~/htop.objdump\n");
 #endif
+
+   fprintf(stderr,
       "\n"
       "Please include the generated file in your report.\n"
       "\n"

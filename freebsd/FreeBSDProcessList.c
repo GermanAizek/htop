@@ -9,12 +9,10 @@ in the source distribution for its full text.
 
 #include <assert.h>
 #include <dirent.h>
-#include <err.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/_iovec.h>
-#include <sys/dirent.h>
 #include <sys/errno.h>
 #include <sys/param.h> // needs to be included before <sys/jail.h> for MAXPATHLEN
 #include <sys/jail.h>
@@ -72,12 +70,9 @@ ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, ui
    len = 2; sysctlnametomib("hw.physmem", MIB_hw_physmem, &len);
 
    len = sizeof(pageSize);
-   if (sysctlbyname("vm.stats.vm.v_page_size", &pageSize, &len, NULL, 0) == -1) {
-      pageSize = CRT_pageSize;
-      pageSizeKb = CRT_pageSize;
-   } else {
-      pageSizeKb = pageSize / ONE_K;
-   }
+   if (sysctlbyname("vm.stats.vm.v_page_size", &pageSize, &len, NULL, 0) == -1)
+      CRT_fatalError("Cannot get pagesize by sysctl");
+   pageSizeKb = pageSize / ONE_K;
 
    // usable page count vm.stats.vm.v_page_count
    // actually usable memory : vm.stats.vm.v_page_count * vm.stats.vm.v_page_size
@@ -149,7 +144,7 @@ ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, ui
 
    fpl->kd = kvm_openfiles(NULL, "/dev/null", NULL, 0, errbuf);
    if (fpl->kd == NULL) {
-      errx(1, "kvm_open: %s", errbuf);
+      CRT_fatalError("kvm_openfiles() failed");
    }
 
    fpl->ttys = Hashtable_new(20, true);
@@ -419,7 +414,7 @@ static char* FreeBSDProcessList_readJailName(const struct kinfo_proc* kproc) {
    char*  jname = NULL;
    char   jnamebuf[MAXHOSTNAMELEN];
 
-   if (kproc->ki_jid != 0 ) {
+   if (kproc->ki_jid != 0) {
       struct iovec jiov[6];
 
       memset(jnamebuf, 0, sizeof(jnamebuf));
@@ -526,13 +521,13 @@ void ProcessList_goThroughEntries(ProcessList* super, bool pauseProcessUpdate) {
       }
 
       // from FreeBSD source /src/usr.bin/top/machine.c
-      proc->m_virt = kproc->ki_size / pageSize;
-      proc->m_resident = kproc->ki_rssize;
+      proc->m_virt = kproc->ki_size / ONE_K;
+      proc->m_resident = kproc->ki_rssize * pageSizeKb;
       proc->nlwp = kproc->ki_numthreads;
       proc->time = (kproc->ki_runtime + 5000) / 10000;
 
       proc->percent_cpu = 100.0 * ((double)kproc->ki_pctcpu / (double)kernelFScale);
-      proc->percent_mem = 100.0 * (proc->m_resident * pageSizeKb) / (double)(super->totalMem);
+      proc->percent_mem = 100.0 * proc->m_resident / (double)(super->totalMem);
 
       /*
        * TODO

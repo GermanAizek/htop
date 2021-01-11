@@ -15,7 +15,6 @@ in the source distribution for its full text.
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
-#include <err.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <string.h>
@@ -55,12 +54,9 @@ ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, ui
    len = 2; sysctlnametomib("hw.physmem", MIB_hw_physmem, &len);
 
    len = sizeof(pageSize);
-   if (sysctlbyname("vm.stats.vm.v_page_size", &pageSize, &len, NULL, 0) == -1) {
-      pageSize = CRT_pageSize;
-      pageSizeKb = CRT_pageSizeKB;
-   } else {
-      pageSizeKb = pageSize / ONE_K;
-   }
+   if (sysctlbyname("vm.stats.vm.v_page_size", &pageSize, &len, NULL, 0) == -1)
+      CRT_fatalError("Cannot get pagesize by sysctl");
+   pageSizeKb = pageSize / ONE_K;
 
    // usable page count vm.stats.vm.v_page_count
    // actually usable memory : vm.stats.vm.v_page_count * vm.stats.vm.v_page_size
@@ -115,7 +111,7 @@ ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, ui
 
    dfpl->kd = kvm_openfiles(NULL, "/dev/null", NULL, 0, errbuf);
    if (dfpl->kd == NULL) {
-      errx(1, "kvm_open: %s", errbuf);
+      CRT_fatalError("kvm_openfiles() failed");
    }
 
    return pl;
@@ -265,7 +261,7 @@ static inline void DragonFlyBSDProcessList_scanMemoryInfo(ProcessList* pl) {
    pl->usedSwap *= pageSizeKb;
 }
 
-char* DragonFlyBSDProcessList_readProcessName(kvm_t* kd, struct kinfo_proc* kproc, int* basenameEnd) {
+static char* DragonFlyBSDProcessList_readProcessName(kvm_t* kd, const struct kinfo_proc* kproc, int* basenameEnd) {
    char** argv = kvm_getargv(kd, kproc, 0);
    if (!argv) {
       return xStrdup(kproc->kp_comm);
@@ -297,25 +293,20 @@ static inline void DragonFlyBSDProcessList_scanJails(DragonFlyBSDProcessList* df
    char* nextpos;
 
    if (sysctlbyname("jail.list", NULL, &len, NULL, 0) == -1) {
-      fprintf(stderr, "initial sysctlbyname / jail.list failed\n");
-      exit(3);
+      CRT_fatalError("initial sysctlbyname / jail.list failed");
    }
 retry:
    if (len == 0)
       return;
 
    jls = xMalloc(len);
-   if (jls == NULL) {
-      fprintf(stderr, "xMalloc failed\n");
-      exit(4);
-   }
+
    if (sysctlbyname("jail.list", jls, &len, NULL, 0) == -1) {
       if (errno == ENOMEM) {
          free(jls);
          goto retry;
       }
-      fprintf(stderr, "sysctlbyname / jail.list failed\n");
-      exit(5);
+      CRT_fatalError("sysctlbyname / jail.list failed");
    }
 
    if (dfpl->jails) {
@@ -346,7 +337,7 @@ retry:
    free(jls);
 }
 
-char* DragonFlyBSDProcessList_readJailName(DragonFlyBSDProcessList* dfpl, int jailid) {
+static char* DragonFlyBSDProcessList_readJailName(DragonFlyBSDProcessList* dfpl, int jailid) {
    char*  hostname;
    char*  jname;
 
@@ -376,10 +367,10 @@ void ProcessList_goThroughEntries(ProcessList* super, bool pauseProcessUpdate) {
    int count = 0;
 
    // TODO Kernel Threads seem to be skipped, need to figure out the correct flag
-   struct kinfo_proc* kprocs = kvm_getprocs(dfpl->kd, KERN_PROC_ALL | (!hideUserlandThreads ? KERN_PROC_FLAG_LWP : 0), 0, &count);
+   const struct kinfo_proc* kprocs = kvm_getprocs(dfpl->kd, KERN_PROC_ALL | (!hideUserlandThreads ? KERN_PROC_FLAG_LWP : 0), 0, &count);
 
    for (int i = 0; i < count; i++) {
-      struct kinfo_proc* kproc = &kprocs[i];
+      const struct kinfo_proc* kproc = &kprocs[i];
       bool preExisting = false;
       bool ATTR_UNUSED isIdleProcess = false;
 
@@ -433,13 +424,13 @@ void ProcessList_goThroughEntries(ProcessList* super, bool pauseProcessUpdate) {
          }
       }
 
-      proc->m_virt = kproc->kp_vm_map_size / pageSize;
-      proc->m_resident = kproc->kp_vm_rssize;
+      proc->m_virt = kproc->kp_vm_map_size / ONE_K;
+      proc->m_resident = kproc->kp_vm_rssize * pageSizeKb;
       proc->nlwp = kproc->kp_nthreads;		// number of lwp thread
       proc->time = (kproc->kp_swtime + 5000) / 10000;
 
       proc->percent_cpu = 100.0 * ((double)kproc->kp_lwp.kl_pctcpu / (double)kernelFScale);
-      proc->percent_mem = 100.0 * (proc->m_resident * pageSizeKb) / (double)(super->totalMem);
+      proc->percent_mem = 100.0 * proc->m_resident / (double)(super->totalMem);
 
       if (proc->percent_cpu > 0.1) {
          // system idle process should own all CPU time left regardless of CPU count
