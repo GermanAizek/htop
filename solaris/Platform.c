@@ -86,7 +86,7 @@ const SignalItem Platform_signals[] = {
 
 const unsigned int Platform_numberOfSignals = ARRAYSIZE(Platform_signals);
 
-ProcessField Platform_defaultFields[] = { PID, LWPID, USER, PRIORITY, NICE, M_VIRT, M_RESIDENT, STATE, PERCENT_CPU, PERCENT_MEM, TIME, COMM, 0 };
+const ProcessField Platform_defaultFields[] = { PID, LWPID, USER, PRIORITY, NICE, M_VIRT, M_RESIDENT, STATE, PERCENT_CPU, PERCENT_MEM, TIME, COMM, 0 };
 
 const MeterClass* const Platform_meterTypes[] = {
    &CPUMeter_class,
@@ -118,10 +118,6 @@ const MeterClass* const Platform_meterTypes[] = {
    &BlankMeter_class,
    NULL
 };
-
-int Platform_numberOfFields = LAST_PROCESSFIELD;
-
-extern char Process_pidFormat[20];
 
 void Platform_init(void) {
    /* no platform-specific setup needed */
@@ -209,7 +205,7 @@ double Platform_setCPUValues(Meter* this, int cpu) {
 
    percent = isnan(percent) ? 0.0 : CLAMP(percent, 0.0, 100.0);
 
-   v[CPU_METER_FREQUENCY] = NAN;
+   v[CPU_METER_FREQUENCY] = cpuData->frequency;
    v[CPU_METER_TEMPERATURE] = NAN;
 
    return percent;

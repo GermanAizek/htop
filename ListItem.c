@@ -29,7 +29,7 @@ static void ListItem_display(const Object* cast, RichString* out) {
    assert (this != NULL);
 
    if (this->moving) {
-      RichString_write(out, CRT_colors[DEFAULT_COLOR],
+      RichString_writeWide(out, CRT_colors[DEFAULT_COLOR],
 #ifdef HAVE_LIBNCURSESW
                        CRT_utf8 ? "↕ " :
 #endif
@@ -37,7 +37,7 @@ static void ListItem_display(const Object* cast, RichString* out) {
    } else {
       RichString_prune(out);
    }
-   RichString_append(out, CRT_colors[DEFAULT_COLOR], this->value);
+   RichString_appendWide(out, CRT_colors[DEFAULT_COLOR], this->value);
 }
 
 ListItem* ListItem_new(const char* value, int key) {
@@ -57,7 +57,7 @@ void ListItem_append(ListItem* this, const char* text) {
    this->value[newLen] = '\0';
 }
 
-static long ListItem_compare(const void* cast1, const void* cast2) {
+static int ListItem_compare(const void* cast1, const void* cast2) {
    const ListItem* obj1 = (const ListItem*) cast1;
    const ListItem* obj2 = (const ListItem*) cast2;
    return strcmp(obj1->value, obj2->value);
