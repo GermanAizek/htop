@@ -1,3 +1,9 @@
+htop (3.0.5-3) UNRELEASED; urgency=medium
+
+  * Another update to the hurd patch
+
+ -- Daniel Lange <DLange@debian.org>  Fri, 15 Jan 2021 10:47:00 +0100
+
 htop (3.0.5-2) unstable; urgency=medium
 
   * Backport patches to fix:
