@@ -14,7 +14,7 @@ else
 endif
 
 # hurd-i386 can open /proc (nothing there) and /proc/ which works
-ifeq (hurd-i386,$(DEB_TARGET_ARCH))
+ifeq (hurd,$(DEB_HOST_ARCH_OS))
 	ARCH_DEPENDENT_CONFIGURE_PARAMS+= --with-proc=/proc/
 else
 	ARCH_DEPENDENT_CONFIGURE_PARAMS+= --with-sensors
