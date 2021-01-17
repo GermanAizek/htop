@@ -11,9 +11,9 @@ Build-Depends: debhelper-compat (= 13),
                libkvm-dev [kfreebsd-any],
                libncurses5-dev,
                libncursesw5-dev,
-               libnl-3-dev  [linux-any],
-               libnl-genl-3-dev  [linux-any],
-               libsensors4-dev,
+               libnl-3-dev [linux-any],
+               libnl-genl-3-dev [linux-any],
+               libsensors4-dev [!hurd-any],
                pkg-config
 Standards-Version: 4.5.1
 Rules-Requires-Root: no

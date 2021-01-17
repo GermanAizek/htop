@@ -13,6 +13,13 @@ else
 		--enable-hwloc
 endif
 
+# hurd-i386 can open /proc (nothing there) and /proc/ which works
+ifeq (hurd-i386,$(DEB_TARGET_ARCH))
+	ARCH_DEPENDENT_CONFIGURE_PARAMS+= --with-proc=/proc/
+else
+	ARCH_DEPENDENT_CONFIGURE_PARAMS+= --with-sensors
+endif
+
 %:
 	dh $@
 
@@ -23,5 +30,4 @@ override_dh_auto_configure:
 		--enable-vserver \
 		--enable-cgroup \
 		--enable-unicode \
-		--with-sensors \
 		$(ARCH_DEPENDENT_CONFIGURE_PARAMS)
