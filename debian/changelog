@@ -4,11 +4,12 @@ htop (3.0.5-3) UNRELEASED; urgency=medium
   * Another update to the hurd patch
   * Fix PROCDIR for the hurd build
   * Disable sensors for hurd build (no libsensors-dev available)
+  * Add patch to silence kFreeBSD compiler warnings
 
   [ Graham Inggs ]
   * Add lm-sensors to Suggests
 
- -- Daniel Lange <DLange@debian.org>  Sun, 17 Jan 2021 19:00:00 +0100
+ -- Daniel Lange <DLange@debian.org>  Wed, 20 Jan 2021 09:00:00 +0100
 
 htop (3.0.5-2) unstable; urgency=medium
 
