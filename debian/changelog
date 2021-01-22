@@ -1,6 +1,10 @@
 htop (3.0.5-3) UNRELEASED; urgency=medium
 
   [ Daniel Lange ]
+  * Overhaul of the column sorting logic
+    Note to users: This may invert the sort logic for some columns over what
+    is stored in your htoprc. Please press 'I' to invert the sort order and
+    save the htoprc (by exiting htop) to restore your startup sort order.
   * Another update to the hurd patch
   * Fix PROCDIR for the hurd build
   * Disable sensors for hurd build (no libsensors-dev available)
@@ -10,7 +14,7 @@ htop (3.0.5-3) UNRELEASED; urgency=medium
   [ Graham Inggs ]
   * Add lm-sensors to Suggests
 
- -- Daniel Lange <DLange@debian.org>  Wed, 21 Jan 2021 09:20:00 +0100
+ -- Daniel Lange <DLange@debian.org>  Fri, 22 Jan 2021 16:30:00 +0100
 
 htop (3.0.5-2) unstable; urgency=medium
 

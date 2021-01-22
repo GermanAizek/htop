@@ -2,3 +2,4 @@
 0002-fix-ncurses-field-padding.patch
 0003-fix-hurd-build.patch
 0004-fix-kfreebsd-build.patch
+0005-fix-sorting.patch
