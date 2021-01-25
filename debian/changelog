@@ -1,4 +1,4 @@
-htop (3.0.5-3) UNRELEASED; urgency=medium
+htop (3.0.5-3) unstable; urgency=medium
 
   [ Daniel Lange ]
   * Overhaul of the column sorting logic
@@ -15,7 +15,7 @@ htop (3.0.5-3) UNRELEASED; urgency=medium
   [ Graham Inggs ]
   * Add lm-sensors to Suggests
 
- -- Daniel Lange <DLange@debian.org>  Mon, 25 Jan 2021 10:45:00 +0100
+ -- Daniel Lange <DLange@debian.org>  Mon, 25 Jan 2021 11:11:00 +0100
 
 htop (3.0.5-2) unstable; urgency=medium
 
