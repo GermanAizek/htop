@@ -10,11 +10,12 @@ htop (3.0.5-3) UNRELEASED; urgency=medium
   * Disable sensors for hurd build (no libsensors-dev available)
   * Add patch to silence kFreeBSD compiler warnings
   * Build-dep on libsensors-dev (Closes: #980731)
+  * Drop configure options from d/rules that were made unconditional upstream
 
   [ Graham Inggs ]
   * Add lm-sensors to Suggests
 
- -- Daniel Lange <DLange@debian.org>  Fri, 22 Jan 2021 16:30:00 +0100
+ -- Daniel Lange <DLange@debian.org>  Mon, 25 Jan 2021 10:45:00 +0100
 
 htop (3.0.5-2) unstable; urgency=medium
 

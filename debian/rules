@@ -25,9 +25,7 @@ endif
 
 override_dh_auto_configure:
 	dh_auto_configure -- \
-		--enable-taskstats \
 		--enable-openvz \
 		--enable-vserver \
-		--enable-cgroup \
 		--enable-unicode \
 		$(ARCH_DEPENDENT_CONFIGURE_PARAMS)
