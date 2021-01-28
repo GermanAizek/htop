@@ -3,3 +3,4 @@
 0003-fix-hurd-build.patch
 0004-fix-kfreebsd-build.patch
 0005-fix-sorting.patch
+0006-fix-infoscreen-mouse.patch
