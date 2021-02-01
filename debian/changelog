@@ -1,8 +1,9 @@
 htop (3.0.5-4) UNRELEASED; urgency=medium
 
   * Fix mouse use / scrolling in Infoscreens
+  * Fix Shift-F3 (prev hit in search mode) for QT based terminals
 
- -- Daniel Lange <DLange@debian.org>  Thu, 28 Jan 2021 12:46:00 +0100
+ -- Daniel Lange <DLange@debian.org>  Mon, 01 Feb 2021 12:32:00 +0100
 
 htop (3.0.5-3) unstable; urgency=medium
 

@@ -5,3 +5,4 @@
 0005-fix-sorting.patch
 0006-fix-infoscreen-mouse.patch
 0007-fix-exit-in-signal-handler.patch
+0008-add-qterm-keyboard-code.patch
