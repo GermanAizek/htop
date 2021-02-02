@@ -6,3 +6,4 @@
 0006-fix-infoscreen-mouse.patch
 0007-fix-exit-in-signal-handler.patch
 0008-add-qterm-keyboard-code.patch
+0009-hardening.patch
