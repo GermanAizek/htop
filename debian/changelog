@@ -1,10 +1,11 @@
-htop (3.0.5-4) UNRELEASED; urgency=medium
+htop (3.0.5-4) unstable; urgency=medium
 
   * Fix mouse use / scrolling in Infoscreens
   * Fix Shift-F3 (prev hit in search mode) for QT based terminals
-  * Harden string handling routine
+  * Harden string handling routine, sort timeout
+  * Improve initial setup of CPU meters for systems with many cores
 
- -- Daniel Lange <DLange@debian.org>  Tue, 02 Feb 2021 06:45:00 +0100
+ -- Daniel Lange <DLange@debian.org>  Fri, 05 Feb 2021 08:50:00 +0100
 
 htop (3.0.5-3) unstable; urgency=medium
 
