@@ -1,3 +1,9 @@
+htop (3.0.5-5) UNRELEASED; urgency=medium
+
+  * Fix forced sort order when switching to tree mode
+
+ -- Daniel Lange <DLange@debian.org>  Tue, 09 Feb 2021 09:10:36 +0100
+
 htop (3.0.5-4) unstable; urgency=medium
 
   * Fix mouse use / scrolling in Infoscreens

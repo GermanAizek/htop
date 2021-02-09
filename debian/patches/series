@@ -9,3 +9,4 @@
 0009-hardening.patch
 0010-fix-sort-timeout.patch
 0011-improve-setup-for-many-cpu-systems.patch
+0012-fix-forced-sort-order.patch
