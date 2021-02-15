@@ -1,8 +1,10 @@
-htop (3.0.5-5) UNRELEASED; urgency=medium
+htop (3.0.5-5) unstable; urgency=medium
 
   * Fix forced sort order when switching to tree mode
+  * Allow btime=0 on some embedded systems (i.e. no RTC)
+  * Fix ZFS coloring to match other meters
 
- -- Daniel Lange <DLange@debian.org>  Tue, 09 Feb 2021 09:10:36 +0100
+ -- Daniel Lange <DLange@debian.org>  Mon, 15 Feb 2021 11:11:11 +0100
 
 htop (3.0.5-4) unstable; urgency=medium
 
