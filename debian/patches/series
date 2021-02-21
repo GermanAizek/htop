@@ -12,3 +12,4 @@
 0012-fix-forced-sort-order.patch
 0013-fix-btime-zero.patch
 0014-fix-zfs-coloring.patch
+0015-clean-infoscreen-before-new-scan.patch

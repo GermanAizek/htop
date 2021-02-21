@@ -1,3 +1,9 @@
+htop (3.0.5-6) unstable; urgency=medium
+
+  * Fix cleaning the infoscreen before a next scan
+
+ -- Daniel Lange <DLange@debian.org>  Mon, 01 Mar 2021 09:00:00 +0100
+
 htop (3.0.5-5) unstable; urgency=medium
 
   * Fix forced sort order when switching to tree mode
