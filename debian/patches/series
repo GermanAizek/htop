@@ -13,3 +13,4 @@
 0013-fix-btime-zero.patch
 0014-fix-zfs-coloring.patch
 0015-clean-infoscreen-before-new-scan.patch
+0016-fix-div-by-zero-zfscompressedarcmeter.patch
