@@ -1,8 +1,9 @@
-htop (3.0.5-6) UNRELEASED; urgency=medium
+htop (3.0.5-7) UNRELEASED; urgency=medium
 
   * Fix division by 0 on ZfsCompressedArcMeter (when no ZFS volume is mounted)
+  * Update watch file to match Github URL schema change
 
- -- Daniel Lange <DLange@debian.org>  Fri, 23 Apr 2021 09:00:00 +0200
+ -- Daniel Lange <DLange@debian.org>  Sat, 24 Apr 2021 11:23:00 +0200
 
 htop (3.0.5-6) unstable; urgency=medium
 
