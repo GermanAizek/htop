@@ -6,7 +6,7 @@ Released under the GNU GPLv2, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include "OpenBSDProcess.h"
+#include "openbsd/OpenBSDProcess.h"
 
 #include <stdlib.h>
 
@@ -63,9 +63,9 @@ const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
       .flags = 0,
       .pidColumn = true,
    },
-   [TTY_NR] = {
-      .name = "TTY_NR",
-      .title = "    TTY ",
+   [TTY] = {
+      .name = "TTY",
+      .title = "TTY      ",
       .description = "Controlling terminal",
       .flags = 0,
    },
@@ -81,12 +81,14 @@ const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
       .title = "     MINFLT ",
       .description = "Number of minor faults which have not required loading a memory page from disk",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [MAJFLT] = {
       .name = "MAJFLT",
       .title = "     MAJFLT ",
       .description = "Number of major faults which have required loading a memory page from disk",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [PRIORITY] = {
       .name = "PRIORITY",
@@ -106,6 +108,12 @@ const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
       .description = "Time the process was started",
       .flags = 0,
    },
+   [ELAPSED] = {
+      .name = "ELAPSED",
+      .title = "ELAPSED  ",
+      .description = "Time since the process was started",
+      .flags = 0,
+   },
    [PROCESSOR] = {
       .name = "PROCESSOR",
       .title = "CPU ",
@@ -117,12 +125,14 @@ const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
       .title = " VIRT ",
       .description = "Total program size in virtual memory",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [M_RESIDENT] = {
       .name = "M_RESIDENT",
       .title = "  RES ",
       .description = "Resident set size, size of the text and data sections, plus stack usage",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [ST_UID] = {
       .name = "ST_UID",
@@ -135,18 +145,21 @@ const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
       .title = "CPU% ",
       .description = "Percentage of the CPU time the process used in the last sampling",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [PERCENT_NORM_CPU] = {
       .name = "PERCENT_NORM_CPU",
       .title = "NCPU%",
       .description = "Normalized percentage of the CPU time the process used in the last sampling (normalized by cpu count)",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [PERCENT_MEM] = {
       .name = "PERCENT_MEM",
       .title = "MEM% ",
       .description = "Percentage of the memory the process is using, based on resident memory size",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [USER] = {
       .name = "USER",
@@ -159,6 +172,7 @@ const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
       .title = "  TIME+  ",
       .description = "Total time the process has spent in user and system time",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [NLWP] = {
       .name = "NLWP",
@@ -173,6 +187,19 @@ const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
       .flags = 0,
       .pidColumn = true,
    },
+   [PROC_COMM] = {
+      .name = "COMM",
+      .title = "COMM            ",
+      .description = "comm string of the process",
+      .flags = 0,
+   },
+   [CWD] = {
+      .name = "CWD",
+      .title = "CWD                       ",
+      .description = "The current working directory of the process",
+      .flags = PROCESS_FLAG_CWD,
+   },
+
 };
 
 Process* OpenBSDProcess_new(const Settings* settings) {
@@ -226,7 +253,3 @@ const ProcessClass OpenBSDProcess_class = {
    .writeField = OpenBSDProcess_writeField,
    .compareByKey = OpenBSDProcess_compareByKey
 };
-
-bool Process_isThread(const Process* this) {
-   return Process_isKernelThread(this) || Process_isUserlandThread(this);
-}

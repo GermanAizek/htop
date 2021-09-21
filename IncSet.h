@@ -14,6 +14,7 @@ in the source distribution for its full text.
 #include "Panel.h"
 #include "Vector.h"
 
+
 #define INCMODE_MAX 40
 
 typedef enum {
@@ -39,6 +40,8 @@ typedef struct IncSet_ {
 static inline const char* IncSet_filter(const IncSet* this) {
    return this->filtering ? this->modes[INC_FILTER].buffer : NULL;
 }
+
+void IncSet_setFilter(IncSet* this, const char* filter);
 
 typedef const char* (*IncMode_GetPanelValue)(Panel*, int);
 

@@ -29,6 +29,13 @@ void IncSet_reset(IncSet* this, IncType type) {
    IncMode_reset(&this->modes[type]);
 }
 
+void IncSet_setFilter(IncSet* this, const char* filter) {
+   IncMode* mode = &this->modes[INC_FILTER];
+   size_t len = String_safeStrncpy(mode->buffer, filter, sizeof(mode->buffer));
+   mode->index = len;
+   this->filtering = true;
+}
+
 static const char* const searchFunctions[] = {"Next  ", "Prev   ", "Cancel ", " Search: ", NULL};
 static const char* const searchKeys[] = {"F3", "S-F3", "Esc", "  "};
 static const int searchEvents[] = {KEY_F(3), KEY_F(15), 27, ERR};
@@ -70,8 +77,8 @@ void IncSet_delete(IncSet* this) {
    free(this);
 }
 
-static void updateWeakPanel(IncSet* this, Panel* panel, Vector* lines) {
-   Object* selected = Panel_getSelected(panel);
+static void updateWeakPanel(const IncSet* this, Panel* panel, Vector* lines) {
+   const Object* selected = Panel_getSelected(panel);
    Panel_prune(panel);
    if (this->filtering) {
       int n = 0;
@@ -98,7 +105,7 @@ static void updateWeakPanel(IncSet* this, Panel* panel, Vector* lines) {
    }
 }
 
-static bool search(IncMode* mode, Panel* panel, IncMode_GetPanelValue getPanelValue) {
+static bool search(const IncMode* mode, Panel* panel, IncMode_GetPanelValue getPanelValue) {
    int size = Panel_size(panel);
    for (int i = 0; i < size; i++) {
       if (String_contains_i(getPanelValue(panel, i), mode->buffer)) {
@@ -110,7 +117,7 @@ static bool search(IncMode* mode, Panel* panel, IncMode_GetPanelValue getPanelVa
    return false;
 }
 
-static bool IncMode_find(IncMode* mode, Panel* panel, IncMode_GetPanelValue getPanelValue, int step) {
+static bool IncMode_find(const IncMode* mode, Panel* panel, IncMode_GetPanelValue getPanelValue, int step) {
    int size = Panel_size(panel);
    int here = Panel_getSelectedIndex(panel);
    int i = here;
@@ -201,7 +208,7 @@ bool IncSet_handleKey(IncSet* this, int ch, Panel* panel, IncMode_GetPanelValue 
 }
 
 const char* IncSet_getListItemValue(Panel* panel, int i) {
-   ListItem* l = (ListItem*) Panel_get(panel, i);
+   const ListItem* l = (const ListItem*) Panel_get(panel, i);
    return l ? l->value : "";
 }
 

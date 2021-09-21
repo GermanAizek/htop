@@ -13,6 +13,7 @@ in the source distribution for its full text.
 #include "ScreenManager.h"
 #include "Settings.h"
 
+
 typedef struct CategoriesPanel_ {
    Panel super;
    ScreenManager* scr;
@@ -21,8 +22,6 @@ typedef struct CategoriesPanel_ {
    Header* header;
    ProcessList* pl;
 } CategoriesPanel;
-
-void CategoriesPanel_makeMetersPage(CategoriesPanel* this);
 
 extern const PanelClass CategoriesPanel_class;
 

@@ -13,6 +13,7 @@ in the source distribution for its full text.
 
 #include "Macros.h"
 #include "ProvideCurses.h"
+#include "Settings.h"
 
 
 typedef enum TreeStr_ {
@@ -52,6 +53,7 @@ typedef enum ColorElements_ {
    PANEL_SELECTION_FOLLOW,
    PANEL_SELECTION_UNFOCUS,
    LARGE_NUMBER,
+   METER_SHADOW,
    METER_TEXT,
    METER_VALUE,
    METER_VALUE_ERROR,
@@ -65,13 +67,14 @@ typedef enum ColorElements_ {
    BATTERY,
    TASKS_RUNNING,
    SWAP,
+   SWAP_CACHE,
    PROCESS,
    PROCESS_SHADOW,
    PROCESS_TAG,
    PROCESS_MEGABYTES,
    PROCESS_GIGABYTES,
    PROCESS_TREE,
-   PROCESS_R_STATE,
+   PROCESS_RUN_STATE,
    PROCESS_D_STATE,
    PROCESS_BASENAME,
    PROCESS_HIGH_PRIORITY,
@@ -90,6 +93,11 @@ typedef enum ColorElements_ {
    MEMORY_BUFFERS,
    MEMORY_BUFFERS_TEXT,
    MEMORY_CACHE,
+   MEMORY_SHARED,
+   HUGEPAGE_1,
+   HUGEPAGE_2,
+   HUGEPAGE_3,
+   HUGEPAGE_4,
    LOAD,
    LOAD_AVERAGE_FIFTEEN,
    LOAD_AVERAGE_FIVE,
@@ -101,6 +109,7 @@ typedef enum ColorElements_ {
    DATE,
    DATETIME,
    HELP_BOLD,
+   HELP_SHADOW,
    HOSTNAME,
    CPU_NICE,
    CPU_NICE_TEXT,
@@ -122,6 +131,15 @@ typedef enum ColorElements_ {
    ZFS_COMPRESSED,
    ZFS_RATIO,
    ZRAM,
+   DYNAMIC_GRAY,
+   DYNAMIC_DARKGRAY,
+   DYNAMIC_RED,
+   DYNAMIC_GREEN,
+   DYNAMIC_BLUE,
+   DYNAMIC_CYAN,
+   DYNAMIC_MAGENTA,
+   DYNAMIC_YELLOW,
+   DYNAMIC_WHITE,
    LAST_COLORELEMENT
 } ColorElements;
 
@@ -154,23 +172,11 @@ extern int CRT_scrollWheelVAmount;
 
 extern ColorScheme CRT_colorScheme;
 
-#ifdef HAVE_SETUID_ENABLED
-
-void CRT_dropPrivileges(void);
-
-void CRT_restorePrivileges(void);
-
-#else /* HAVE_SETUID_ENABLED */
-
-/* Turn setuid operations into NOPs */
-static inline void CRT_dropPrivileges(void) { }
-static inline void CRT_restorePrivileges(void) { }
-
-#endif /* HAVE_SETUID_ENABLED */
-
-void CRT_init(const int* delay, int colorScheme, bool allowUnicode);
+void CRT_init(const Settings* settings, bool allowUnicode);
 
 void CRT_done(void);
+
+void CRT_resetSignalHandlers(void);
 
 int CRT_readKey(void);
 

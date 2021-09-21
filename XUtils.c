@@ -78,6 +78,26 @@ void* xReallocArray(void* ptr, size_t nmemb, size_t size) {
    return xRealloc(ptr, nmemb * size);
 }
 
+void* xReallocArrayZero(void* ptr, size_t prevmemb, size_t newmemb, size_t size) {
+   assert((ptr == NULL) == (prevmemb == 0));
+
+   if (prevmemb == newmemb) {
+      return ptr;
+   }
+
+   void* ret = xReallocArray(ptr, newmemb, size);
+
+   if (newmemb > prevmemb) {
+      memset((unsigned char*)ret + prevmemb * size, '\0', (newmemb - prevmemb) * size);
+   }
+
+   return ret;
+}
+
+inline bool String_contains_i(const char* s1, const char* s2) {
+   return strcasestr(s1, s2) != NULL;
+}
+
 char* String_cat(const char* s1, const char* s2) {
    const size_t l1 = strlen(s1);
    const size_t l2 = strlen(s2);
@@ -173,7 +193,7 @@ char* String_readLine(FILE* fd) {
    char* buffer = xMalloc(step + 1);
    char* at = buffer;
    for (;;) {
-      char* ok = fgets(at, step + 1, fd);
+      const char* ok = fgets(at, step + 1, fd);
       if (!ok) {
          free(buffer);
          return NULL;
@@ -191,6 +211,18 @@ char* String_readLine(FILE* fd) {
       buffer = xRealloc(buffer, bufSize + 1);
       at = buffer + bufSize - step;
    }
+}
+
+size_t String_safeStrncpy(char* restrict dest, const char* restrict src, size_t size) {
+   assert(size > 0);
+
+   size_t i = 0;
+   for (; i < size - 1 && src[i]; i++)
+      dest[i] = src[i];
+
+   dest[i] = '\0';
+
+   return i;
 }
 
 int xAsprintf(char** strp, const char* fmt, ...) {
@@ -225,6 +257,14 @@ char* xStrdup(const char* str) {
       fail();
    }
    return data;
+}
+
+void free_and_xStrdup(char** ptr, const char* str) {
+   if (*ptr && String_eq(*ptr, str))
+      return;
+
+   free(*ptr);
+   *ptr = xStrdup(str);
 }
 
 char* xStrndup(const char* str, size_t len) {

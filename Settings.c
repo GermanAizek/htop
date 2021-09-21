@@ -7,12 +7,17 @@ in the source distribution for its full text.
 
 #include "Settings.h"
 
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
 #include "CRT.h"
+#include "DynamicColumn.h"
 #include "Macros.h"
 #include "Meter.h"
 #include "Platform.h"
@@ -22,21 +27,27 @@ in the source distribution for its full text.
 void Settings_delete(Settings* this) {
    free(this->filename);
    free(this->fields);
-   for (unsigned int i = 0; i < ARRAYSIZE(this->columns); i++) {
-      String_freeArray(this->columns[i].names);
-      free(this->columns[i].modes);
+   for (unsigned int i = 0; i < HeaderLayout_getColumns(this->hLayout); i++) {
+      if (this->hColumns[i].names) {
+         for (uint8_t j = 0; j < this->hColumns[i].len; j++)
+            free(this->hColumns[i].names[j]);
+         free(this->hColumns[i].names);
+      }
+      free(this->hColumns[i].modes);
    }
+   free(this->hColumns);
    free(this);
 }
 
-static void Settings_readMeters(Settings* this, char* line, int column) {
+static void Settings_readMeters(Settings* this, const char* line, unsigned int column) {
    char* trim = String_trim(line);
    char** ids = String_split(trim, ' ', NULL);
    free(trim);
-   this->columns[column].names = ids;
+   column = MINIMUM(column, HeaderLayout_getColumns(this->hLayout) - 1);
+   this->hColumns[column].names = ids;
 }
 
-static void Settings_readMeterModes(Settings* this, char* line, int column) {
+static void Settings_readMeterModes(Settings* this, const char* line, unsigned int column) {
    char* trim = String_trim(line);
    char** ids = String_split(trim, ' ', NULL);
    free(trim);
@@ -44,86 +55,121 @@ static void Settings_readMeterModes(Settings* this, char* line, int column) {
    for (int i = 0; ids[i]; i++) {
       len++;
    }
-   this->columns[column].len = len;
-   int* modes = xCalloc(len, sizeof(int));
+   column = MINIMUM(column, HeaderLayout_getColumns(this->hLayout) - 1);
+   this->hColumns[column].len = len;
+   int* modes = len ? xCalloc(len, sizeof(int)) : NULL;
    for (int i = 0; i < len; i++) {
       modes[i] = atoi(ids[i]);
    }
    String_freeArray(ids);
-   this->columns[column].modes = modes;
+   this->hColumns[column].modes = modes;
 }
 
-static void Settings_defaultMeters(Settings* this, int initialCpuCount) {
+static void Settings_defaultMeters(Settings* this, unsigned int initialCpuCount) {
    int sizes[] = { 3, 3 };
-   if (initialCpuCount > 4) {
+   if (initialCpuCount > 4 && initialCpuCount <= 128) {
       sizes[1]++;
    }
    for (int i = 0; i < 2; i++) {
-      this->columns[i].names = xCalloc(sizes[i] + 1, sizeof(char*));
-      this->columns[i].modes = xCalloc(sizes[i], sizeof(int));
-      this->columns[i].len = sizes[i];
+      this->hColumns[i].names = xCalloc(sizes[i] + 1, sizeof(char*));
+      this->hColumns[i].modes = xCalloc(sizes[i], sizeof(int));
+      this->hColumns[i].len = sizes[i];
    }
    int r = 0;
-   if (initialCpuCount > 8) {
-      this->columns[0].names[0] = xStrdup("LeftCPUs2");
-      this->columns[0].modes[0] = BAR_METERMODE;
-      this->columns[1].names[r] = xStrdup("RightCPUs2");
-      this->columns[1].modes[r++] = BAR_METERMODE;
+
+   if (initialCpuCount > 128) {
+      // Just show the average, ricers need to config for impressive screenshots
+      this->hColumns[0].names[0] = xStrdup("CPU");
+      this->hColumns[0].modes[0] = BAR_METERMODE;
+   } else if (initialCpuCount > 32) {
+      this->hColumns[0].names[0] = xStrdup("LeftCPUs8");
+      this->hColumns[0].modes[0] = BAR_METERMODE;
+      this->hColumns[1].names[r] = xStrdup("RightCPUs8");
+      this->hColumns[1].modes[r++] = BAR_METERMODE;
+   } else if (initialCpuCount > 16) {
+      this->hColumns[0].names[0] = xStrdup("LeftCPUs4");
+      this->hColumns[0].modes[0] = BAR_METERMODE;
+      this->hColumns[1].names[r] = xStrdup("RightCPUs4");
+      this->hColumns[1].modes[r++] = BAR_METERMODE;
+   } else if (initialCpuCount > 8) {
+      this->hColumns[0].names[0] = xStrdup("LeftCPUs2");
+      this->hColumns[0].modes[0] = BAR_METERMODE;
+      this->hColumns[1].names[r] = xStrdup("RightCPUs2");
+      this->hColumns[1].modes[r++] = BAR_METERMODE;
    } else if (initialCpuCount > 4) {
-      this->columns[0].names[0] = xStrdup("LeftCPUs");
-      this->columns[0].modes[0] = BAR_METERMODE;
-      this->columns[1].names[r] = xStrdup("RightCPUs");
-      this->columns[1].modes[r++] = BAR_METERMODE;
+      this->hColumns[0].names[0] = xStrdup("LeftCPUs");
+      this->hColumns[0].modes[0] = BAR_METERMODE;
+      this->hColumns[1].names[r] = xStrdup("RightCPUs");
+      this->hColumns[1].modes[r++] = BAR_METERMODE;
    } else {
-      this->columns[0].names[0] = xStrdup("AllCPUs");
-      this->columns[0].modes[0] = BAR_METERMODE;
+      this->hColumns[0].names[0] = xStrdup("AllCPUs");
+      this->hColumns[0].modes[0] = BAR_METERMODE;
    }
-   this->columns[0].names[1] = xStrdup("Memory");
-   this->columns[0].modes[1] = BAR_METERMODE;
-   this->columns[0].names[2] = xStrdup("Swap");
-   this->columns[0].modes[2] = BAR_METERMODE;
-   this->columns[1].names[r] = xStrdup("Tasks");
-   this->columns[1].modes[r++] = TEXT_METERMODE;
-   this->columns[1].names[r] = xStrdup("LoadAverage");
-   this->columns[1].modes[r++] = TEXT_METERMODE;
-   this->columns[1].names[r] = xStrdup("Uptime");
-   this->columns[1].modes[r++] = TEXT_METERMODE;
+   this->hColumns[0].names[1] = xStrdup("Memory");
+   this->hColumns[0].modes[1] = BAR_METERMODE;
+   this->hColumns[0].names[2] = xStrdup("Swap");
+   this->hColumns[0].modes[2] = BAR_METERMODE;
+   this->hColumns[1].names[r] = xStrdup("Tasks");
+   this->hColumns[1].modes[r++] = TEXT_METERMODE;
+   this->hColumns[1].names[r] = xStrdup("LoadAverage");
+   this->hColumns[1].modes[r++] = TEXT_METERMODE;
+   this->hColumns[1].names[r] = xStrdup("Uptime");
+   this->hColumns[1].modes[r++] = TEXT_METERMODE;
 }
 
-static void readFields(ProcessField* fields, uint32_t* flags, const char* line) {
+static void Settings_readFields(Settings* settings, const char* line) {
    char* trim = String_trim(line);
    char** ids = String_split(trim, ' ', NULL);
    free(trim);
-   int i, j;
-   *flags = 0;
-   for (j = 0, i = 0; i < LAST_PROCESSFIELD && ids[i]; i++) {
+
+   settings->flags = 0;
+
+   unsigned int i, j;
+   for (j = 0, i = 0; ids[i]; i++) {
+      if (j >= UINT_MAX / sizeof(ProcessField))
+         continue;
+      if (j >= LAST_PROCESSFIELD) {
+         settings->fields = xRealloc(settings->fields, j * sizeof(ProcessField));
+         memset(&settings->fields[j], 0, sizeof(ProcessField));
+      }
+
+      // Dynamically-defined columns are always stored by-name.
+      char dynamic[32] = {0};
+      if (sscanf(ids[i], "Dynamic(%30s)", dynamic)) {
+         char* end;
+         if ((end = strrchr(dynamic, ')')) == NULL)
+            continue;
+         *end = '\0';
+         unsigned int key;
+         if (!DynamicColumn_search(settings->dynamicColumns, dynamic, &key))
+            continue;
+         settings->fields[j++] = key;
+         continue;
+      }
       // This "+1" is for compatibility with the older enum format.
       int id = atoi(ids[i]) + 1;
       if (id > 0 && id < LAST_PROCESSFIELD && Process_fields[id].name) {
-         fields[j] = id;
-         *flags |= Process_fields[id].flags;
-         j++;
+         settings->flags |= Process_fields[id].flags;
+         settings->fields[j++] = id;
       }
    }
-   fields[j] = NULL_PROCESSFIELD;
+   settings->fields[j] = NULL_PROCESSFIELD;
    String_freeArray(ids);
 }
 
-static bool Settings_read(Settings* this, const char* fileName, int initialCpuCount) {
-   FILE* fd;
-   CRT_dropPrivileges();
-   fd = fopen(fileName, "r");
-   CRT_restorePrivileges();
+static bool Settings_read(Settings* this, const char* fileName, unsigned int initialCpuCount) {
+   FILE* fd = fopen(fileName, "r");
    if (!fd)
       return false;
 
    bool didReadMeters = false;
-   bool didReadFields = false;
+   bool didReadAny = false;
    for (;;) {
       char* line = String_readLine(fd);
       if (!line) {
          break;
       }
+      didReadAny = true;
       size_t nOptions;
       char** option = String_split(line, '=', &nOptions);
       free (line);
@@ -131,9 +177,18 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
          String_freeArray(option);
          continue;
       }
-      if (String_eq(option[0], "fields")) {
-         readFields(this->fields, &(this->flags), option[1]);
-         didReadFields = true;
+      if (String_eq(option[0], "config_reader_min_version")) {
+         this->config_version = atoi(option[1]);
+         if (this->config_version > CONFIG_READER_MIN_VERSION) {
+            // the version of the config file on disk is newer than what we can read
+            fprintf(stderr, "WARNING: %s specifies configuration format version v%d, but this %s binary supports up to v%d\n.", fileName, this->config_version, PACKAGE, CONFIG_READER_MIN_VERSION);
+            fprintf(stderr, "         The configuration version will be downgraded to v%d when %s exits.\n", CONFIG_READER_MIN_VERSION, PACKAGE);
+            String_freeArray(option);
+            fclose(fd);
+            return false;
+         }
+      } else if (String_eq(option[0], "fields")) {
+         Settings_readFields(this, option[1]);
       } else if (String_eq(option[0], "sort_key")) {
          // This "+1" is for compatibility with the older enum format.
          this->sortKey = atoi(option[1]) + 1;
@@ -148,6 +203,8 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
          this->treeView = atoi(option[1]);
       } else if (String_eq(option[0], "tree_view_always_by_pid")) {
          this->treeViewAlwaysByPID = atoi(option[1]);
+      } else if (String_eq(option[0], "all_branches_collapsed")) {
+         this->allBranchesCollapsed = atoi(option[1]);
       } else if (String_eq(option[0], "hide_kernel_threads")) {
          this->hideKernelThreads = atoi(option[1]);
       } else if (String_eq(option[0], "hide_userland_threads")) {
@@ -160,6 +217,8 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
          this->showProgramPath = atoi(option[1]);
       } else if (String_eq(option[0], "highlight_base_name")) {
          this->highlightBaseName = atoi(option[1]);
+      } else if (String_eq(option[0], "highlight_deleted_exe")) {
+         this->highlightDeletedExe = atoi(option[1]);
       } else if (String_eq(option[0], "highlight_megabytes")) {
          this->highlightMegabytes = atoi(option[1]);
       } else if (String_eq(option[0], "highlight_threads")) {
@@ -167,7 +226,7 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
       } else if (String_eq(option[0], "highlight_changes")) {
          this->highlightChanges = atoi(option[1]);
       } else if (String_eq(option[0], "highlight_changes_delay_secs")) {
-         this->highlightDelaySecs = CLAMP(atoi(option[1]), 1, 24*60*60);
+         this->highlightDelaySecs = CLAMP(atoi(option[1]), 1, 24 * 60 * 60);
       } else if (String_eq(option[0], "find_comm_in_cmdline")) {
          this->findCommInCmdline = atoi(option[1]);
       } else if (String_eq(option[0], "strip_exe_from_cmdline")) {
@@ -190,7 +249,7 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
          this->showCPUUsage = atoi(option[1]);
       } else if (String_eq(option[0], "show_cpu_frequency")) {
          this->showCPUFrequency = atoi(option[1]);
-      #ifdef HAVE_SENSORS_SENSORS_H
+      #ifdef BUILD_WITH_CPU_TEMP
       } else if (String_eq(option[0], "show_cpu_temperature")) {
          this->showCPUTemperature = atoi(option[1]);
       } else if (String_eq(option[0], "degree_fahrenheit")) {
@@ -207,8 +266,16 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
          if (this->colorScheme < 0 || this->colorScheme >= LAST_COLORSCHEME) {
             this->colorScheme = 0;
          }
+      #ifdef HAVE_GETMOUSE
       } else if (String_eq(option[0], "enable_mouse")) {
          this->enableMouse = atoi(option[1]);
+      #endif
+      } else if (String_eq(option[0], "header_layout")) {
+         this->hLayout = isdigit((unsigned char)option[1][0]) ? ((HeaderLayout) atoi(option[1])) : HeaderLayout_fromName(option[1]);
+         if (this->hLayout < 0 || this->hLayout >= LAST_HEADER_LAYOUT)
+            this->hLayout = HF_TWO_50_50;
+         free(this->hColumns);
+         this->hColumns = xCalloc(HeaderLayout_getColumns(this->hLayout), sizeof(MeterColumnSetting));
       } else if (String_eq(option[0], "left_meters")) {
          Settings_readMeters(this, option[1], 0);
          didReadMeters = true;
@@ -220,6 +287,12 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
          didReadMeters = true;
       } else if (String_eq(option[0], "right_meter_modes")) {
          Settings_readMeterModes(this, option[1], 1);
+         didReadMeters = true;
+      } else if (String_startsWith(option[0], "column_meters_")) {
+         Settings_readMeters(this, option[1], atoi(option[0] + strlen("column_meters_")));
+         didReadMeters = true;
+      } else if (String_startsWith(option[0], "column_meter_modes_")) {
+         Settings_readMeterModes(this, option[1], atoi(option[0] + strlen("column_meter_modes_")));
          didReadMeters = true;
       } else if (String_eq(option[0], "hide_function_bar")) {
          this->hideFunctionBar = atoi(option[1]);
@@ -234,116 +307,160 @@ static bool Settings_read(Settings* this, const char* fileName, int initialCpuCo
    if (!didReadMeters) {
       Settings_defaultMeters(this, initialCpuCount);
    }
-   return didReadFields;
+   return didReadAny;
 }
 
-static void writeFields(FILE* fd, ProcessField* fields, const char* name) {
+static void writeFields(FILE* fd, const ProcessField* fields, Hashtable* columns, const char* name, char separator) {
    fprintf(fd, "%s=", name);
    const char* sep = "";
-   for (int i = 0; fields[i]; i++) {
-      // This "-1" is for compatibility with the older enum format.
-      fprintf(fd, "%s%d", sep, (int) fields[i] - 1);
+   for (unsigned int i = 0; fields[i]; i++) {
+      if (fields[i] >= LAST_PROCESSFIELD) {
+         const DynamicColumn* column = DynamicColumn_lookup(columns, fields[i]);
+         fprintf(fd, "%sDynamic(%s)", sep, column->name);
+      } else {
+         // This "-1" is for compatibility with the older enum format.
+         fprintf(fd, "%s%d", sep, (int) fields[i] - 1);
+      }
       sep = " ";
    }
-   fprintf(fd, "\n");
+   fputc(separator, fd);
 }
 
-static void writeMeters(Settings* this, FILE* fd, int column) {
+static void writeMeters(const Settings* this, FILE* fd, char separator, unsigned int column) {
    const char* sep = "";
-   for (int i = 0; i < this->columns[column].len; i++) {
-      fprintf(fd, "%s%s", sep, this->columns[column].names[i]);
+   for (uint8_t i = 0; i < this->hColumns[column].len; i++) {
+      fprintf(fd, "%s%s", sep, this->hColumns[column].names[i]);
       sep = " ";
    }
-   fprintf(fd, "\n");
+   fputc(separator, fd);
 }
 
-static void writeMeterModes(Settings* this, FILE* fd, int column) {
+static void writeMeterModes(const Settings* this, FILE* fd, char separator, unsigned int column) {
    const char* sep = "";
-   for (int i = 0; i < this->columns[column].len; i++) {
-      fprintf(fd, "%s%d", sep, this->columns[column].modes[i]);
+   for (uint8_t i = 0; i < this->hColumns[column].len; i++) {
+      fprintf(fd, "%s%d", sep, this->hColumns[column].modes[i]);
       sep = " ";
    }
-   fprintf(fd, "\n");
+   fputc(separator, fd);
 }
 
-bool Settings_write(Settings* this) {
+int Settings_write(const Settings* this, bool onCrash) {
    FILE* fd;
-
-   CRT_dropPrivileges();
-   fd = fopen(this->filename, "w");
-   CRT_restorePrivileges();
-
-   if (fd == NULL) {
-      return false;
+   char separator;
+   if (onCrash) {
+      fd = stderr;
+      separator = ';';
+   } else {
+      fd = fopen(this->filename, "w");
+      if (fd == NULL)
+         return -errno;
+      separator = '\n';
    }
-   fprintf(fd, "# Beware! This file is rewritten by htop when settings are changed in the interface.\n");
-   fprintf(fd, "# The parser is also very primitive, and not human-friendly.\n");
-   writeFields(fd, this->fields, "fields");
+
+   #define printSettingInteger(setting_, value_) \
+      fprintf(fd, setting_ "=%d%c", (int) (value_), separator)
+   #define printSettingString(setting_, value_) \
+      fprintf(fd, setting_ "=%s%c", value_, separator)
+
+   if (!onCrash) {
+      fprintf(fd, "# Beware! This file is rewritten by htop when settings are changed in the interface.\n");
+      fprintf(fd, "# The parser is also very primitive, and not human-friendly.\n");
+   }
+   printSettingString("htop_version", VERSION);
+   printSettingInteger("config_reader_min_version", CONFIG_READER_MIN_VERSION);
+   writeFields(fd, this->fields, this->dynamicColumns, "fields", separator);
    // This "-1" is for compatibility with the older enum format.
-   fprintf(fd, "sort_key=%d\n", (int) this->sortKey - 1);
-   fprintf(fd, "sort_direction=%d\n", (int) this->direction);
-   fprintf(fd, "tree_sort_key=%d\n", (int) this->treeSortKey - 1);
-   fprintf(fd, "tree_sort_direction=%d\n", (int) this->treeDirection);
-   fprintf(fd, "hide_kernel_threads=%d\n", (int) this->hideKernelThreads);
-   fprintf(fd, "hide_userland_threads=%d\n", (int) this->hideUserlandThreads);
-   fprintf(fd, "shadow_other_users=%d\n", (int) this->shadowOtherUsers);
-   fprintf(fd, "show_thread_names=%d\n", (int) this->showThreadNames);
-   fprintf(fd, "show_program_path=%d\n", (int) this->showProgramPath);
-   fprintf(fd, "highlight_base_name=%d\n", (int) this->highlightBaseName);
-   fprintf(fd, "highlight_megabytes=%d\n", (int) this->highlightMegabytes);
-   fprintf(fd, "highlight_threads=%d\n", (int) this->highlightThreads);
-   fprintf(fd, "highlight_changes=%d\n", (int) this->highlightChanges);
-   fprintf(fd, "highlight_changes_delay_secs=%d\n", (int) this->highlightDelaySecs);
-   fprintf(fd, "find_comm_in_cmdline=%d\n", (int) this->findCommInCmdline);
-   fprintf(fd, "strip_exe_from_cmdline=%d\n", (int) this->stripExeFromCmdline);
-   fprintf(fd, "show_merged_command=%d\n", (int) this->showMergedCommand);
-   fprintf(fd, "tree_view=%d\n", (int) this->treeView);
-   fprintf(fd, "tree_view_always_by_pid=%d\n", (int) this->treeViewAlwaysByPID);
-   fprintf(fd, "header_margin=%d\n", (int) this->headerMargin);
-   fprintf(fd, "detailed_cpu_time=%d\n", (int) this->detailedCPUTime);
-   fprintf(fd, "cpu_count_from_one=%d\n", (int) this->countCPUsFromOne);
-   fprintf(fd, "show_cpu_usage=%d\n", (int) this->showCPUUsage);
-   fprintf(fd, "show_cpu_frequency=%d\n", (int) this->showCPUFrequency);
-   #ifdef HAVE_SENSORS_SENSORS_H
-   fprintf(fd, "show_cpu_temperature=%d\n", (int) this->showCPUTemperature);
-   fprintf(fd, "degree_fahrenheit=%d\n", (int) this->degreeFahrenheit);
+   printSettingInteger("sort_key", this->sortKey - 1);
+   printSettingInteger("sort_direction", this->direction);
+   printSettingInteger("tree_sort_key", this->treeSortKey - 1);
+   printSettingInteger("tree_sort_direction", this->treeDirection);
+   printSettingInteger("hide_kernel_threads", this->hideKernelThreads);
+   printSettingInteger("hide_userland_threads", this->hideUserlandThreads);
+   printSettingInteger("shadow_other_users", this->shadowOtherUsers);
+   printSettingInteger("show_thread_names", this->showThreadNames);
+   printSettingInteger("show_program_path", this->showProgramPath);
+   printSettingInteger("highlight_base_name", this->highlightBaseName);
+   printSettingInteger("highlight_deleted_exe", this->highlightDeletedExe);
+   printSettingInteger("highlight_megabytes", this->highlightMegabytes);
+   printSettingInteger("highlight_threads", this->highlightThreads);
+   printSettingInteger("highlight_changes", this->highlightChanges);
+   printSettingInteger("highlight_changes_delay_secs", this->highlightDelaySecs);
+   printSettingInteger("find_comm_in_cmdline", this->findCommInCmdline);
+   printSettingInteger("strip_exe_from_cmdline", this->stripExeFromCmdline);
+   printSettingInteger("show_merged_command", this->showMergedCommand);
+   printSettingInteger("tree_view", this->treeView);
+   printSettingInteger("tree_view_always_by_pid", this->treeViewAlwaysByPID);
+   printSettingInteger("all_branches_collapsed", this->allBranchesCollapsed);
+   printSettingInteger("header_margin", this->headerMargin);
+   printSettingInteger("detailed_cpu_time", this->detailedCPUTime);
+   printSettingInteger("cpu_count_from_one", this->countCPUsFromOne);
+   printSettingInteger("show_cpu_usage", this->showCPUUsage);
+   printSettingInteger("show_cpu_frequency", this->showCPUFrequency);
+   #ifdef BUILD_WITH_CPU_TEMP
+   printSettingInteger("show_cpu_temperature", this->showCPUTemperature);
+   printSettingInteger("degree_fahrenheit", this->degreeFahrenheit);
    #endif
-   fprintf(fd, "update_process_names=%d\n", (int) this->updateProcessNames);
-   fprintf(fd, "account_guest_in_cpu_meter=%d\n", (int) this->accountGuestInCPUMeter);
-   fprintf(fd, "color_scheme=%d\n", (int) this->colorScheme);
-   fprintf(fd, "enable_mouse=%d\n", (int) this->enableMouse);
-   fprintf(fd, "delay=%d\n", (int) this->delay);
-   fprintf(fd, "left_meters="); writeMeters(this, fd, 0);
-   fprintf(fd, "left_meter_modes="); writeMeterModes(this, fd, 0);
-   fprintf(fd, "right_meters="); writeMeters(this, fd, 1);
-   fprintf(fd, "right_meter_modes="); writeMeterModes(this, fd, 1);
-   fprintf(fd, "hide_function_bar=%d\n", (int) this->hideFunctionBar);
+   printSettingInteger("update_process_names", this->updateProcessNames);
+   printSettingInteger("account_guest_in_cpu_meter", this->accountGuestInCPUMeter);
+   printSettingInteger("color_scheme", this->colorScheme);
+   #ifdef HAVE_GETMOUSE
+   printSettingInteger("enable_mouse", this->enableMouse);
+   #endif
+   printSettingInteger("delay", (int) this->delay);
+   printSettingInteger("hide_function_bar", (int) this->hideFunctionBar);
    #ifdef HAVE_LIBHWLOC
-   fprintf(fd, "topology_affinity=%d\n", (int) this->topologyAffinity);
+   printSettingInteger("topology_affinity", this->topologyAffinity);
    #endif
-   fclose(fd);
-   return true;
+
+   printSettingString("header_layout", HeaderLayout_getName(this->hLayout));
+   for (unsigned int i = 0; i < HeaderLayout_getColumns(this->hLayout); i++) {
+      fprintf(fd, "column_meters_%u=", i);
+      writeMeters(this, fd, separator, i);
+      fprintf(fd, "column_meter_modes_%u=", i);
+      writeMeterModes(this, fd, separator, i);
+   }
+
+   #undef printSettingString
+   #undef printSettingInteger
+
+   if (onCrash)
+      return 0;
+
+   int r = 0;
+
+   if (ferror(fd) != 0)
+      r = (errno != 0) ? -errno : -EBADF;
+
+   if (fclose(fd) != 0)
+      r = r ? r : -errno;
+
+   return r;
 }
 
-Settings* Settings_new(int initialCpuCount) {
+Settings* Settings_new(unsigned int initialCpuCount, Hashtable* dynamicColumns) {
    Settings* this = xCalloc(1, sizeof(Settings));
 
+   this->dynamicColumns = dynamicColumns;
+   this->hLayout = HF_TWO_50_50;
+   this->hColumns = xCalloc(HeaderLayout_getColumns(this->hLayout), sizeof(MeterColumnSetting));
    this->sortKey = PERCENT_CPU;
    this->treeSortKey = PID;
-   this->direction = 1;
+   this->direction = -1;
    this->treeDirection = 1;
    this->shadowOtherUsers = false;
    this->showThreadNames = false;
-   this->hideKernelThreads = false;
+   this->hideKernelThreads = true;
    this->hideUserlandThreads = false;
    this->treeView = false;
+   this->allBranchesCollapsed = false;
    this->highlightBaseName = false;
-   this->highlightMegabytes = false;
+   this->highlightDeletedExe = true;
+   this->highlightMegabytes = true;
    this->detailedCPUTime = false;
    this->countCPUsFromOne = false;
    this->showCPUUsage = true;
    this->showCPUFrequency = false;
-   #ifdef HAVE_SENSORS_SENSORS_H
+   #ifdef BUILD_WITH_CPU_TEMP
    this->showCPUTemperature = false;
    this->degreeFahrenheit = false;
    #endif
@@ -356,6 +473,7 @@ Settings* Settings_new(int initialCpuCount) {
    this->stripExeFromCmdline = true;
    this->showMergedCommand = false;
    this->hideFunctionBar = 0;
+   this->headerMargin = true;
    #ifdef HAVE_LIBHWLOC
    this->topologyAffinity = false;
    #endif
@@ -370,7 +488,7 @@ Settings* Settings_new(int initialCpuCount) {
    }
 
    char* legacyDotfile = NULL;
-   char* rcfile = getenv("HTOPRC");
+   const char* rcfile = getenv("HTOPRC");
    if (rcfile) {
       this->filename = xStrdup(rcfile);
    } else {
@@ -391,7 +509,6 @@ Settings* Settings_new(int initialCpuCount) {
          htopDir = String_cat(home, "/.config/htop");
       }
       legacyDotfile = String_cat(home, "/.htoprc");
-      CRT_dropPrivileges();
       (void) mkdir(configDir, 0700);
       (void) mkdir(htopDir, 0700);
       free(htopDir);
@@ -402,10 +519,11 @@ Settings* Settings_new(int initialCpuCount) {
          free(legacyDotfile);
          legacyDotfile = NULL;
       }
-      CRT_restorePrivileges();
    }
    this->colorScheme = 0;
+#ifdef HAVE_GETMOUSE
    this->enableMouse = true;
+#endif
    this->changed = false;
    this->delay = DEFAULT_DELAY;
    bool ok = false;
@@ -413,7 +531,7 @@ Settings* Settings_new(int initialCpuCount) {
       ok = Settings_read(this, legacyDotfile, initialCpuCount);
       if (ok) {
          // Transition to new location and delete old configuration file
-         if (Settings_write(this)) {
+         if (Settings_write(this, false) == 0) {
             unlink(legacyDotfile);
          }
       }
@@ -424,20 +542,10 @@ Settings* Settings_new(int initialCpuCount) {
    }
    if (!ok) {
       this->changed = true;
-      // TODO: how to get SYSCONFDIR correctly through Autoconf?
-      char* systemSettings = String_cat(SYSCONFDIR, "/htoprc");
-      ok = Settings_read(this, systemSettings, initialCpuCount);
-      free(systemSettings);
+      ok = Settings_read(this, SYSCONFDIR "/htoprc", initialCpuCount);
    }
    if (!ok) {
       Settings_defaultMeters(this, initialCpuCount);
-      this->hideKernelThreads = true;
-      this->highlightMegabytes = true;
-      this->highlightThreads = true;
-      this->findCommInCmdline = true;
-      this->stripExeFromCmdline = true;
-      this->showMergedCommand = false;
-      this->headerMargin = true;
    }
    return this;
 }
@@ -450,10 +558,43 @@ void Settings_invertSortOrder(Settings* this) {
 void Settings_setSortKey(Settings* this, ProcessField sortKey) {
    if (this->treeViewAlwaysByPID || !this->treeView) {
       this->sortKey = sortKey;
-      this->direction = 1;
+      this->direction = (Process_fields[sortKey].defaultSortDesc) ? -1 : 1;
       this->treeView = false;
    } else {
       this->treeSortKey = sortKey;
-      this->treeDirection = 1;
+      this->treeDirection = (Process_fields[sortKey].defaultSortDesc) ? -1 : 1;
    }
+}
+
+static bool readonly = false;
+
+void Settings_enableReadonly(void) {
+   readonly = true;
+}
+
+bool Settings_isReadonly(void) {
+   return readonly;
+}
+
+void Settings_setHeaderLayout(Settings* this, HeaderLayout hLayout) {
+   unsigned int oldColumns = HeaderLayout_getColumns(this->hLayout);
+   unsigned int newColumns = HeaderLayout_getColumns(hLayout);
+
+   if (newColumns > oldColumns) {
+      this->hColumns = xReallocArray(this->hColumns, newColumns, sizeof(MeterColumnSetting));
+      memset(this->hColumns + oldColumns, 0, (newColumns - oldColumns) * sizeof(MeterColumnSetting));
+   } else if (newColumns < oldColumns) {
+      for (unsigned int i = newColumns; i < oldColumns; i++) {
+         if (this->hColumns[i].names) {
+            for (uint8_t j = 0; j < this->hColumns[i].len; j++)
+               free(this->hColumns[i].names[j]);
+            free(this->hColumns[i].names);
+         }
+         free(this->hColumns[i].modes);
+      }
+      this->hColumns = xReallocArray(this->hColumns, newColumns, sizeof(MeterColumnSetting));
+   }
+
+   this->hLayout = hLayout;
+   this->changed = true;
 }
