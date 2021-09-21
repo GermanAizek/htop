@@ -1,3 +1,10 @@
+htop (3.1.0-1) UNRELEASED; urgency=medium
+
+  * Import upstream 3.1.0 release
+  * Drop all Debian patches (have been applied upstream or superseded)
+
+ -- Daniel Lange <DLange@debian.org>  Tue, 21 Sep 2021 08:55:00 +0200
+
 htop (3.0.5-7) unstable; urgency=medium
 
   * Fix division by 0 on ZfsCompressedArcMeter (when no ZFS volume is mounted)
