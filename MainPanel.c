@@ -21,18 +21,19 @@ in the source distribution for its full text.
 #include "XUtils.h"
 
 
-static const char* const MainFunctions[]  = {"Help  ", "Setup ", "Search", "Filter", "Tree  ", "SortBy", "Nice -", "Nice +", "Kill  ", "Quit  ", NULL};
+static const char* const MainFunctions[]     = {"Help  ", "Setup ", "Search", "Filter", "Tree  ", "SortBy", "Nice -", "Nice +", "Kill  ", "Quit  ", NULL};
+static const char* const MainFunctions_ro[]  = {"Help  ", "Setup ", "Search", "Filter", "Tree  ", "SortBy", "      ", "      ", "      ", "Quit  ", NULL};
 
 void MainPanel_updateTreeFunctions(MainPanel* this, bool mode) {
    FunctionBar* bar = MainPanel_getFunctionBar(this);
    FunctionBar_setLabel(bar, KEY_F(5), mode ? "List  " : "Tree  ");
 }
 
-void MainPanel_pidSearch(MainPanel* this, int ch) {
+static void MainPanel_pidSearch(MainPanel* this, int ch) {
    Panel* super = (Panel*) this;
    pid_t pid = ch - 48 + this->pidSearch;
    for (int i = 0; i < Panel_size(super); i++) {
-      Process* p = (Process*) Panel_get(super, i);
+      const Process* p = (const Process*) Panel_get(super, i);
       if (p && p->pid == pid) {
          Panel_setSelected(super, i);
          break;
@@ -60,8 +61,8 @@ static HandlerResult MainPanel_eventHandler(Panel* super, int ch) {
    if (ch == KEY_RESIZE)
       return IGNORED;
 
-   /* reset on every normal key */
-   if (ch != ERR)
+   /* reset on every normal key, except mouse events while mouse support is disabled */
+   if (ch != ERR && (ch != KEY_MOUSE || this->state->settings->enableMouse))
       this->state->hideProcessSelection = false;
 
    if (EVENT_IS_HEADER_CLICK(ch)) {
@@ -111,6 +112,9 @@ static HandlerResult MainPanel_eventHandler(Panel* super, int ch) {
    if (reaction & HTOP_REDRAW_BAR) {
       MainPanel_updateTreeFunctions(this, this->state->settings->treeView);
    }
+   if (reaction & HTOP_RESIZE) {
+      result |= RESIZE;
+   }
    if (reaction & HTOP_UPDATE_PANELHDR) {
       result |= REDRAW;
    }
@@ -134,7 +138,7 @@ static HandlerResult MainPanel_eventHandler(Panel* super, int ch) {
 }
 
 int MainPanel_selectedPid(MainPanel* this) {
-   Process* p = (Process*) Panel_getSelected((Panel*)this);
+   const Process* p = (const Process*) Panel_getSelected((Panel*)this);
    if (p) {
       return p->pid;
    }
@@ -195,7 +199,7 @@ const PanelClass MainPanel_class = {
 
 MainPanel* MainPanel_new() {
    MainPanel* this = AllocThis(MainPanel);
-   Panel_init((Panel*) this, 1, 1, 1, 1, Class(Process), false, FunctionBar_new(MainFunctions, NULL, NULL));
+   Panel_init((Panel*) this, 1, 1, 1, 1, Class(Process), false, FunctionBar_new(Settings_isReadonly() ? MainFunctions_ro : MainFunctions, NULL, NULL));
    this->keys = xCalloc(KEY_MAX, sizeof(Htop_Action));
    this->inc = IncSet_new(MainPanel_getFunctionBar(this));
 

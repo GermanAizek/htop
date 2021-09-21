@@ -4,7 +4,6 @@
 
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "CRT.h"
@@ -28,7 +27,7 @@ InfoScreen* InfoScreen_init(InfoScreen* this, const Process* process, FunctionBa
    }
    this->display = Panel_new(0, 1, COLS, height, Class(ListItem), false, bar);
    this->inc = IncSet_new(bar);
-   this->lines = Vector_new(this->display->items->type, true, DEFAULT_SIZE);
+   this->lines = Vector_new(Vector_type(this->display->items), true, DEFAULT_SIZE);
    Panel_setHeader(this->display, panelHeader);
    return this;
 }
@@ -95,7 +94,9 @@ void InfoScreen_run(InfoScreen* this) {
       if (this->inc->active) {
          (void) move(LINES - 1, CRT_cursorX);
       }
+#ifdef HAVE_SET_ESCDELAY
       set_escdelay(25);
+#endif
       int ch = getch();
 
       if (ch == ERR) {
@@ -105,18 +106,29 @@ void InfoScreen_run(InfoScreen* this) {
          }
       }
 
+#ifdef HAVE_GETMOUSE
       if (ch == KEY_MOUSE) {
          MEVENT mevent;
          int ok = getmouse(&mevent);
          if (ok == OK) {
-            if (mevent.y >= panel->y && mevent.y < LINES - 1) {
-               Panel_setSelected(panel, mevent.y - panel->y + panel->scrollV);
-               ch = 0;
-            } else if (mevent.y == LINES - 1) {
-               ch = IncSet_synthesizeEvent(this->inc, mevent.x);
+            if (mevent.bstate & BUTTON1_RELEASED) {
+               if (mevent.y >= panel->y && mevent.y < LINES - 1) {
+                  Panel_setSelected(panel, mevent.y - panel->y + panel->scrollV - 1);
+                  ch = 0;
+               } else if (mevent.y == LINES - 1) {
+                  ch = IncSet_synthesizeEvent(this->inc, mevent.x);
+               }
             }
+            #if NCURSES_MOUSE_VERSION > 1
+            else if (mevent.bstate & BUTTON4_PRESSED) {
+               ch = KEY_WHEELUP;
+            } else if (mevent.bstate & BUTTON5_PRESSED) {
+               ch = KEY_WHEELDOWN;
+            }
+            #endif
          }
       }
+#endif
 
       if (this->inc->active) {
          IncSet_handleKey(this->inc, ch, panel, IncSet_getListItemValue, this->lines);
@@ -136,8 +148,10 @@ void InfoScreen_run(InfoScreen* this) {
          break;
       case KEY_F(5):
          clear();
-         if (As_InfoScreen(this)->scan)
+         if (As_InfoScreen(this)->scan) {
+            Vector_prune(this->lines);
             InfoScreen_scan(this);
+         }
 
          InfoScreen_draw(this);
          break;
@@ -152,8 +166,10 @@ void InfoScreen_run(InfoScreen* this) {
          break;
       case KEY_RESIZE:
          Panel_resize(panel, COLS, LINES - 2);
-         if (As_InfoScreen(this)->scan)
+         if (As_InfoScreen(this)->scan) {
+            Vector_prune(this->lines);
             InfoScreen_scan(this);
+         }
 
          InfoScreen_draw(this);
          break;

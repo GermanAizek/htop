@@ -9,9 +9,8 @@ in the source distribution for its full text.
 
 #include <sys/sysctl.h>
 
-#include "DarwinProcessList.h"
 #include "Settings.h"
-
+#include "darwin/DarwinProcessList.h"
 
 typedef struct DarwinProcess_ {
    Process super;
@@ -30,11 +29,9 @@ Process* DarwinProcess_new(const Settings* settings);
 
 void Process_delete(Object* cast);
 
-bool Process_isThread(const Process* this);
-
 void DarwinProcess_setFromKInfoProc(Process* proc, const struct kinfo_proc* ps, bool exists);
 
-void DarwinProcess_setFromLibprocPidinfo(DarwinProcess* proc, DarwinProcessList* dpl, double time_interval);
+void DarwinProcess_setFromLibprocPidinfo(DarwinProcess* proc, DarwinProcessList* dpl, double timeIntervalNS);
 
 /*
  * Scan threads for process state information.
