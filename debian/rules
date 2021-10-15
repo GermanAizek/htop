@@ -6,7 +6,7 @@ include /usr/share/dpkg/buildflags.mk
 
 ifeq (linux,$(DEB_HOST_ARCH_OS))
 	ARCH_DEPENDENT_CONFIGURE_PARAMS = \
-		--enable-linux-affinity \
+		--enable-affinity \
 		--enable-delayacct
 else
 	ARCH_DEPENDENT_CONFIGURE_PARAMS = \
@@ -17,7 +17,7 @@ endif
 ifeq (hurd,$(DEB_HOST_ARCH_OS))
 	ARCH_DEPENDENT_CONFIGURE_PARAMS+= --with-proc=/proc/
 else
-	ARCH_DEPENDENT_CONFIGURE_PARAMS+= --with-sensors
+	ARCH_DEPENDENT_CONFIGURE_PARAMS+= --enable-sensors
 endif
 
 %:
