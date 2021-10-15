@@ -1,0 +1,48 @@
+From 604744f68d5c0375987eb9b60298f2affd1d8f38 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Christian=20G=C3=B6ttsche?= <cgzones@googlemail.com>
+Date: Fri, 15 Oct 2021 12:16:41 +0200
+Subject: [PATCH] Header: allocate memory for terminating entry
+
+The names array is terminated by a NULL entry, thus allocate space for
+one more than entries.
+
+Fixes: #844
+
+==6708==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x6060000045b8 at pc 0x000000589ee1 bp 0x7ffcd1dee220 sp 0x7ffcd1dee218
+READ of size 8 at 0x6060000045b8 thread T0
+    #0 0x589ee0 in String_freeArray ./XUtils.c:157:23
+    #1 0x56c9af in Settings_delete ./Settings.c:31:7
+    #2 0x4ee44b in CommandLine_run ./CommandLine.c:395:4
+    #3 0x4d6fb2 in main ./htop.c:15:11
+    #4 0x7ff3b8154e49 in __libc_start_main csu/../csu/libc-start.c:314:16
+    #5 0x428aa9 in _start (./htop+0x428aa9)
+
+0x6060000045b8 is located 0 bytes to the right of 56-byte region [0x606000004580,0x6060000045b8)
+allocated by thread T0 here:
+    #0 0x4a53f2 in __interceptor_calloc (./htop+0x4a53f2)
+    #1 0x5890ba in xCalloc ./XUtils.c:55:17
+    #2 0x50a044 in Header_writeBackToSettings ./Header.c:148:34
+    #3 0x4de861 in Action_runSetup ./Action.c:91:7
+    #4 0x4de861 in actionSetup ./Action.c:386:4
+    #5 0x515caf in MainPanel_eventHandler ./MainPanel.c:106:19
+    #6 0x56a5c1 in ScreenManager_run ./ScreenManager.c:235:19
+    #7 0x4ee13b in CommandLine_run ./CommandLine.c:364:4
+    #8 0x4d6fb2 in main ./htop.c:15:11
+    #9 0x7ff3b8154e49 in __libc_start_main csu/../csu/libc-start.c:314:16
+---
+ Header.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Header.c b/Header.c
+index 16525206e..c557a4508 100644
+--- a/Header.c
++++ b/Header.c
+@@ -145,7 +145,7 @@ void Header_writeBackToSettings(const Header* this) {
+       const Vector* vec = this->columns[col];
+       int len = Vector_size(vec);
+ 
+-      colSettings->names = len ? xCalloc(len, sizeof(char*)) : NULL;
++      colSettings->names = len ? xCalloc(len + 1, sizeof(char*)) : NULL;
+       colSettings->modes = len ? xCalloc(len, sizeof(int)) : NULL;
+       colSettings->len = len;
+ 
