@@ -1,9 +1,17 @@
-htop (3.1.1-1) UNRELEASED; urgency=medium
+htop (3.2.0-1) unstable; urgency=medium
 
-  * Import upstream 3.1.1 release
-  * Fix colSettings segfault
+  * Import upstream 3.2.0 release
+    (Closes: #1004582)
+  * Drop Debian patches applied upstream
+  * This version now has Screen tabs in the user interface
+    (use the tab key to switch)
+  * Allow multiple filter and search terms (logical OR, separate by "|")
+  * Add heuristics for guessing LXC or Docker from /proc/1/mounts
+    (this fixes a bug with memory reporting in containers while using ZFS
+    on the host)
+  * Many more performance and small functionality improvements
 
- -- Daniel Lange <DLange@debian.org>  Fri, 15 Oct 2021 15:22:00 +0200
+ -- Daniel Lange <DLange@debian.org>  Mon, 02 May 2022 16:27:00 +0200
 
 htop (3.1.0-1) UNRELEASED; urgency=medium
 
