@@ -96,17 +96,10 @@ typedef struct ProcessCmdlineHighlight_ {
  * Process_writeCommand to color the string. str will be NULL for kernel
  * threads and zombies */
 typedef struct ProcessMergedCommand_ {
+   uint64_t lastUpdate;                        /* Marker based on settings->lastUpdate to track when the rendering needs refreshing */
    char* str;                                  /* merged Command string */
    size_t highlightCount;                      /* how many portions of cmdline to highlight */
    ProcessCmdlineHighlight highlights[8];      /* which portions of cmdline to highlight */
-   bool cmdlineChanged : 1;                    /* whether cmdline changed */
-   bool exeChanged : 1;                        /* whether exe changed */
-   bool commChanged : 1;                       /* whether comm changed */
-   bool prevMergeSet : 1;                      /* whether showMergedCommand was set */
-   bool prevPathSet : 1;                       /* whether showProgramPath was set */
-   bool prevCommSet : 1;                       /* whether findCommInCmdline was set */
-   bool prevCmdlineSet : 1;                    /* whether stripExeFromCmdline was set */
-   bool prevShowThreadNames : 1;               /* whether showThreadNames was set */
 } ProcessMergedCommand;
 
 typedef struct Process_ {
@@ -293,7 +286,7 @@ extern uint8_t Process_fieldWidths[LAST_PROCESSFIELD];
 #define PROCESS_MIN_PID_DIGITS 5
 #define PROCESS_MAX_PID_DIGITS 19
 #define PROCESS_MIN_UID_DIGITS 5
-#define PROCESS_MAX_UID_DIGITS 19
+#define PROCESS_MAX_UID_DIGITS 20
 extern int Process_pidDigits;
 extern int Process_uidDigits;
 
@@ -394,7 +387,11 @@ bool Process_changePriorityBy(Process* this, Arg delta);
 
 bool Process_sendSignal(Process* this, Arg sgn);
 
-int Process_pidCompare(const void* v1, const void* v2);
+static inline int Process_pidEqualCompare(const void* v1, const void* v2) {
+   const pid_t p1 = ((const Process*)v1)->pid;
+   const pid_t p2 = ((const Process*)v2)->pid;
+   return p1 != p2; /* return zero when equal */
+}
 
 int Process_compareByKey_Base(const Process* p1, const Process* p2, ProcessField key);
 

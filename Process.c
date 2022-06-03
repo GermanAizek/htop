@@ -414,6 +414,8 @@ void Process_makeCommandStr(Process* this) {
    bool stripExeFromCmdline = settings->stripExeFromCmdline;
    bool showThreadNames = settings->showThreadNames;
 
+   uint64_t settingsStamp = settings->lastUpdate;
+
    /* Nothing to do to (Re)Generate the Command string, if the process is:
     * - a kernel thread, or
     * - a zombie from before being under htop's watch, or
@@ -422,52 +424,27 @@ void Process_makeCommandStr(Process* this) {
       return;
    if (this->state == ZOMBIE && !this->mergedCommand.str)
       return;
-   if (Process_isUserlandThread(this) && settings->showThreadNames && (showThreadNames == mc->prevShowThreadNames) && (mc->prevMergeSet == showMergedCommand))
-      return;
 
    /* this->mergedCommand.str needs updating only if its state or contents changed.
     * Its content is based on the fields cmdline, comm, and exe. */
-   if (
-      mc->prevMergeSet == showMergedCommand &&
-      mc->prevPathSet == showProgramPath &&
-      mc->prevCommSet == searchCommInCmdline &&
-      mc->prevCmdlineSet == stripExeFromCmdline &&
-      mc->prevShowThreadNames == showThreadNames &&
-      !mc->cmdlineChanged &&
-      !mc->commChanged &&
-      !mc->exeChanged
-   ) {
+   if (mc->lastUpdate >= settingsStamp)
       return;
-   }
+
+   mc->lastUpdate = settingsStamp;
 
    /* The field separtor "│" has been chosen such that it will not match any
     * valid string used for searching or filtering */
    const char* SEPARATOR = CRT_treeStr[TREE_STR_VERT];
    const int SEPARATOR_LEN = strlen(SEPARATOR);
 
-   /* Check for any changed fields since we last built this string */
-   if (mc->cmdlineChanged || mc->commChanged || mc->exeChanged) {
-      free(mc->str);
-      /* Accommodate the column text, two field separators and terminating NUL */
-      size_t maxLen = 2 * SEPARATOR_LEN + 1;
-      maxLen += this->cmdline ? strlen(this->cmdline) : strlen("(zombie)");
-      maxLen += this->procComm ? strlen(this->procComm) : 0;
-      maxLen += this->procExe ? strlen(this->procExe) : 0;
+   /* Accommodate the column text, two field separators and terminating NUL */
+   size_t maxLen = 2 * SEPARATOR_LEN + 1;
+   maxLen += this->cmdline ? strlen(this->cmdline) : strlen("(zombie)");
+   maxLen += this->procComm ? strlen(this->procComm) : 0;
+   maxLen += this->procExe ? strlen(this->procExe) : 0;
 
-      mc->str = xCalloc(1, maxLen);
-   }
-
-   /* Preserve the settings used in this run */
-   mc->prevMergeSet = showMergedCommand;
-   mc->prevPathSet = showProgramPath;
-   mc->prevCommSet = searchCommInCmdline;
-   mc->prevCmdlineSet = stripExeFromCmdline;
-   mc->prevShowThreadNames = showThreadNames;
-
-   /* Mark everything as unchanged */
-   mc->cmdlineChanged = false;
-   mc->commChanged = false;
-   mc->exeChanged = false;
+   free(mc->str);
+   mc->str = xCalloc(1, maxLen);
 
    /* Reset all locations that need extra handling when actually displaying */
    mc->highlightCount = 0;
@@ -601,11 +578,15 @@ void Process_makeCommandStr(Process* this) {
    }
 
    if (matchLen) {
-      /* strip the matched exe prefix */
-      cmdline += matchLen;
+      if (stripExeFromCmdline) {
+         /* strip the matched exe prefix */
+         cmdline += matchLen;
 
-      commStart -= matchLen;
-      commEnd -= matchLen;
+         commStart -= matchLen;
+         commEnd -= matchLen;
+      } else {
+         matchLen = 0;
+      }
    }
 
    if (!matchLen || (haveCommField && *cmdline)) {
@@ -739,17 +720,20 @@ void Process_printLeftAlignedField(RichString* str, int attr, const char* conten
 
 void Process_printPercentage(float val, char* buffer, int n, uint8_t width, int* attr) {
    if (val >= 0) {
-      if (val < 99.9F) {
-         if (val < 0.05F) {
-            *attr = CRT_colors[PROCESS_SHADOW];
-         }
-         xSnprintf(buffer, n, "%*.1f ", width, val);
-      } else {
+      if (val < 0.05F)
+         *attr = CRT_colors[PROCESS_SHADOW];
+      else if (val >= 99.9F)
          *attr = CRT_colors[PROCESS_MEGABYTES];
-         if (val < 100.0F)
-            val = 100.0F; // Don't round down and display "val" as "99".
-         xSnprintf(buffer, n, "%*.0f ", width, val);
+
+      int precision = 1;
+
+      // Display "val" as "100" for columns like "MEM%".
+      if (width == 4 && val > 99.9F) {
+         precision = 0;
+         val = 100.0F;
       }
+
+      xSnprintf(buffer, n, "%*.*f ", width, precision, val);
    } else {
       *attr = CRT_colors[PROCESS_SHADOW];
       xSnprintf(buffer, n, "%*.*s ", width, width, "N/A");
@@ -1095,13 +1079,6 @@ bool Process_sendSignal(Process* this, Arg sgn) {
    return kill(this->pid, sgn.i) == 0;
 }
 
-int Process_pidCompare(const void* v1, const void* v2) {
-   const Process* p1 = (const Process*)v1;
-   const Process* p2 = (const Process*)v2;
-
-   return SPACESHIP_NUMBER(p1->pid, p2->pid);
-}
-
 int Process_compare(const void* v1, const void* v2) {
    const Process* p1 = (const Process*)v1;
    const Process* p2 = (const Process*)v2;
@@ -1204,7 +1181,8 @@ void Process_updateComm(Process* this, const char* comm) {
 
    free(this->procComm);
    this->procComm = comm ? xStrdup(comm) : NULL;
-   this->mergedCommand.commChanged = true;
+
+   this->mergedCommand.lastUpdate = 0;
 }
 
 static int skipPotentialPath(const char* cmdline, int end) {
@@ -1244,7 +1222,8 @@ void Process_updateCmdline(Process* this, const char* cmdline, int basenameStart
    this->cmdline = cmdline ? xStrdup(cmdline) : NULL;
    this->cmdlineBasenameStart = (basenameStart || !cmdline) ? basenameStart : skipPotentialPath(cmdline, basenameEnd);
    this->cmdlineBasenameEnd = basenameEnd;
-   this->mergedCommand.cmdlineChanged = true;
+
+   this->mergedCommand.lastUpdate = 0;
 }
 
 void Process_updateExe(Process* this, const char* exe) {
@@ -1263,7 +1242,8 @@ void Process_updateExe(Process* this, const char* exe) {
       this->procExe = NULL;
       this->procExeBasenameOffset = 0;
    }
-   this->mergedCommand.exeChanged = true;
+
+   this->mergedCommand.lastUpdate = 0;
 }
 
 uint8_t Process_fieldWidths[LAST_PROCESSFIELD] = { 0 };
@@ -1287,13 +1267,14 @@ void Process_updateFieldWidth(ProcessField key, size_t width) {
 }
 
 void Process_updateCPUFieldWidths(float percentage) {
-   if (percentage < 99.9) {
+   if (percentage < 99.9F) {
       Process_updateFieldWidth(PERCENT_CPU, 4);
       Process_updateFieldWidth(PERCENT_NORM_CPU, 4);
       return;
    }
 
-   uint8_t width = ceil(log10(percentage + .2));
+   // Add additional two characters, one for "." and another for precision.
+   uint8_t width = ceil(log10(percentage + 0.1)) + 2;
 
    Process_updateFieldWidth(PERCENT_CPU, width);
    Process_updateFieldWidth(PERCENT_NORM_CPU, width);
