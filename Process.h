@@ -134,6 +134,9 @@ typedef struct Process_ {
    /* This is a userland thread / LWP */
    bool isUserlandThread;
 
+   /* This process is running inside a container */
+   bool isRunningInContainer;
+
    /* Controlling terminal identifier of the process */
    unsigned long int tty_nr;
 
@@ -242,7 +245,7 @@ typedef struct Process_ {
    /*
     * Internal state for tree-mode.
     */
-   int indent;
+   int32_t indent;
    unsigned int tree_depth;
 
    /* Has no known parent process */
@@ -328,6 +331,7 @@ static inline bool Process_isThread(const Process* this) {
 #define CMDLINE_HIGHLIGHT_FLAG_BASENAME   0x00000002
 #define CMDLINE_HIGHLIGHT_FLAG_COMM       0x00000004
 #define CMDLINE_HIGHLIGHT_FLAG_DELETED    0x00000008
+#define CMDLINE_HIGHLIGHT_FLAG_PREFIXDIR  0x00000010
 
 #define ONE_K 1024UL
 #define ONE_M (ONE_K * ONE_K)
