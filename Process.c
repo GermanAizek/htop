@@ -44,7 +44,7 @@ static uid_t Process_getuid = (uid_t)-1;
 int Process_pidDigits = PROCESS_MIN_PID_DIGITS;
 int Process_uidDigits = PROCESS_MIN_UID_DIGITS;
 
-void Process_setupColumnWidths() {
+void Process_setupColumnWidths(void) {
    int maxPid = Platform_getMaxPid();
    if (maxPid == -1)
       return;
@@ -413,6 +413,7 @@ void Process_makeCommandStr(Process* this) {
    bool searchCommInCmdline = settings->findCommInCmdline;
    bool stripExeFromCmdline = settings->stripExeFromCmdline;
    bool showThreadNames = settings->showThreadNames;
+   bool shadowDistPathPrefix = settings->shadowDistPathPrefix;
 
    uint64_t settingsStamp = settings->lastUpdate;
 
@@ -472,6 +473,56 @@ void Process_makeCommandStr(Process* this) {
          str = stpcpy(str, SEPARATOR);                                                        \
       } while (0)
 
+   #define CHECK_AND_MARK(str_, prefix_)                                                      \
+      if (String_startsWith(str_, prefix_)) {                                                 \
+         WRITE_HIGHLIGHT(0, strlen(prefix_), CRT_colors[PROCESS_SHADOW], CMDLINE_HIGHLIGHT_FLAG_PREFIXDIR); \
+         break;                                                                               \
+      } else (void)0
+
+   #define CHECK_AND_MARK_DIST_PATH_PREFIXES(str_)                                            \
+      do {                                                                                    \
+         if ((str_)[0] != '/') {                                                              \
+            break;                                                                            \
+         }                                                                                    \
+         switch ((str_)[1]) {                                                                 \
+            case 'b':                                                                         \
+               CHECK_AND_MARK(str_, "/bin/");                                                 \
+               break;                                                                         \
+            case 'l':                                                                         \
+               CHECK_AND_MARK(str_, "/lib/");                                                 \
+               CHECK_AND_MARK(str_, "/lib32/");                                               \
+               CHECK_AND_MARK(str_, "/lib64/");                                               \
+               CHECK_AND_MARK(str_, "/libx32/");                                              \
+               break;                                                                         \
+            case 's':                                                                         \
+               CHECK_AND_MARK(str_, "/sbin/");                                                \
+               break;                                                                         \
+            case 'u':                                                                         \
+               if (String_startsWith(str_, "/usr/")) {                                        \
+                  switch ((str_)[5]) {                                                        \
+                     case 'b':                                                                \
+                        CHECK_AND_MARK(str_, "/usr/bin/");                                    \
+                        break;                                                                \
+                     case 'l':                                                                \
+                        CHECK_AND_MARK(str_, "/usr/libexec/");                                \
+                        CHECK_AND_MARK(str_, "/usr/lib/");                                    \
+                        CHECK_AND_MARK(str_, "/usr/lib32/");                                  \
+                        CHECK_AND_MARK(str_, "/usr/lib64/");                                  \
+                        CHECK_AND_MARK(str_, "/usr/libx32/");                                 \
+                                                                                              \
+                        CHECK_AND_MARK(str_, "/usr/local/bin/");                              \
+                        CHECK_AND_MARK(str_, "/usr/local/lib/");                              \
+                        CHECK_AND_MARK(str_, "/usr/local/sbin/");                             \
+                        break;                                                                \
+                     case 's':                                                                \
+                        CHECK_AND_MARK(str_, "/usr/sbin/");                                   \
+                        break;                                                                \
+                  }                                                                           \
+               }                                                                              \
+               break;                                                                         \
+         }                                                                                    \
+      } while (0)
+
    const int baseAttr = Process_isThread(this) ? CRT_colors[PROCESS_THREAD_BASENAME] : CRT_colors[PROCESS_BASENAME];
    const int commAttr = Process_isThread(this) ? CRT_colors[PROCESS_THREAD_COMM] : CRT_colors[PROCESS_COMM];
    const int delExeAttr = CRT_colors[FAILED_READ];
@@ -503,12 +554,15 @@ void Process_makeCommandStr(Process* this) {
             WRITE_HIGHLIGHT(0, strlen(procComm), commAttr, CMDLINE_HIGHLIGHT_FLAG_COMM);
             str = stpcpy(str, procComm);
 
-            if(!showMergedCommand)
+            if (!showMergedCommand)
                return;
 
             WRITE_SEPARATOR;
          }
       }
+
+      if (shadowDistPathPrefix && showProgramPath)
+         CHECK_AND_MARK_DIST_PATH_PREFIXES(cmdline);
 
       if (cmdlineBasenameEnd > cmdlineBasenameStart)
          WRITE_HIGHLIGHT(showProgramPath ? cmdlineBasenameStart : 0, cmdlineBasenameEnd - cmdlineBasenameStart, baseAttr, CMDLINE_HIGHLIGHT_FLAG_BASENAME);
@@ -537,6 +591,8 @@ void Process_makeCommandStr(Process* this) {
 
    /* Start with copying exe */
    if (showProgramPath) {
+      if (shadowDistPathPrefix)
+         CHECK_AND_MARK_DIST_PATH_PREFIXES(procExe);
       if (haveCommInExe)
          WRITE_HIGHLIGHT(exeBasenameOffset, exeBasenameLen, commAttr, CMDLINE_HIGHLIGHT_FLAG_COMM);
       WRITE_HIGHLIGHT(exeBasenameOffset, exeBasenameLen, baseAttr, CMDLINE_HIGHLIGHT_FLAG_BASENAME);
@@ -594,6 +650,9 @@ void Process_makeCommandStr(Process* this) {
       WRITE_SEPARATOR;
    }
 
+   if (shadowDistPathPrefix)
+      CHECK_AND_MARK_DIST_PATH_PREFIXES(cmdline);
+
    if (!haveCommInExe && haveCommInCmdline && !haveCommField && (!Process_isUserlandThread(this) || showThreadNames))
       WRITE_HIGHLIGHT(commStart, commEnd - commStart, commAttr, CMDLINE_HIGHLIGHT_FLAG_COMM);
 
@@ -601,6 +660,8 @@ void Process_makeCommandStr(Process* this) {
    if (*cmdline)
       (void)stpcpyWithNewlineConversion(str, cmdline);
 
+   #undef CHECK_AND_MARK_DIST_PATH_PREFIXES
+   #undef CHECK_AND_MARK
    #undef WRITE_SEPARATOR
    #undef WRITE_HIGHLIGHT
 }
@@ -609,6 +670,7 @@ void Process_writeCommand(const Process* this, int attr, int baseAttr, RichStrin
    (void)baseAttr;
 
    const ProcessMergedCommand* mc = &this->mergedCommand;
+   const char* mergedCommand = mc->str;
 
    int strStart = RichString_size(str);
 
@@ -616,7 +678,7 @@ void Process_writeCommand(const Process* this, int attr, int baseAttr, RichStrin
    const bool highlightSeparator = true;
    const bool highlightDeleted = this->settings->highlightDeletedExe;
 
-   if (!this->mergedCommand.str) {
+   if (!mergedCommand) {
       int len = 0;
       const char* cmdline = this->cmdline;
 
@@ -649,7 +711,7 @@ void Process_writeCommand(const Process* this, int attr, int baseAttr, RichStrin
       return;
    }
 
-   RichString_appendWide(str, attr, this->mergedCommand.str);
+   RichString_appendWide(str, attr, mergedCommand);
 
    for (size_t i = 0, hlCount = CLAMP(mc->highlightCount, 0, ARRAYSIZE(mc->highlights)); i < hlCount; i++) {
       const ProcessCmdlineHighlight* hl = &mc->highlights[i];
@@ -666,6 +728,10 @@ void Process_writeCommand(const Process* this, int attr, int baseAttr, RichStrin
             continue;
 
       if (hl->flags & CMDLINE_HIGHLIGHT_FLAG_DELETED)
+         if (!highlightDeleted)
+            continue;
+
+      if (hl->flags & CMDLINE_HIGHLIGHT_FLAG_PREFIXDIR)
          if (!highlightDeleted)
             continue;
 
@@ -782,19 +848,11 @@ void Process_writeField(const Process* this, RichString* str, ProcessField field
       }
 
       char* buf = buffer;
-      int maxIndent = 0;
-      bool lastItem = (this->indent < 0);
-      int indent = (this->indent < 0 ? -this->indent : this->indent);
+      const bool lastItem = (this->indent < 0);
 
-      for (int i = 0; i < 32; i++) {
-         if (indent & (1U << i)) {
-            maxIndent = i + 1;
-         }
-      }
-
-      for (int i = 0; i < maxIndent - 1; i++) {
+      for (uint32_t indent = (this->indent < 0 ? -this->indent : this->indent); indent > 1; indent >>= 1) {
          int written, ret;
-         if (indent & (1 << i)) {
+         if (indent & 1U) {
             ret = xSnprintf(buf, n, "%s  ", CRT_treeStr[TREE_STR_VERT]);
          } else {
             ret = xSnprintf(buf, n, "   ");
@@ -1248,7 +1306,7 @@ void Process_updateExe(Process* this, const char* exe) {
 
 uint8_t Process_fieldWidths[LAST_PROCESSFIELD] = { 0 };
 
-void Process_resetFieldWidths() {
+void Process_resetFieldWidths(void) {
    for (size_t i = 0; i < LAST_PROCESSFIELD; i++) {
       if (!Process_fields[i].autoWidth)
          continue;
