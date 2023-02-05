@@ -1,7 +1,7 @@
 /*
 htop - StringUtils.c
 (C) 2004-2011 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
@@ -13,6 +13,7 @@ in the source distribution for its full text.
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -20,7 +21,7 @@ in the source distribution for its full text.
 #include "CRT.h"
 
 
-void fail() {
+void fail(void) {
    CRT_done();
    abort();
 
@@ -36,9 +37,21 @@ void* xMalloc(size_t size) {
    return data;
 }
 
+void* xMallocArray(size_t nmemb, size_t size) {
+   assert(nmemb > 0);
+   assert(size > 0);
+   if (SIZE_MAX / nmemb < size) {
+      fail();
+   }
+   return xMalloc(nmemb * size);
+}
+
 void* xCalloc(size_t nmemb, size_t size) {
    assert(nmemb > 0);
    assert(size > 0);
+   if (SIZE_MAX / nmemb < size) {
+      fail();
+   }
    void* data = calloc(nmemb, size);
    if (!data) {
       fail();
@@ -56,9 +69,55 @@ void* xRealloc(void* ptr, size_t size) {
    return data;
 }
 
+void* xReallocArray(void* ptr, size_t nmemb, size_t size) {
+   assert(nmemb > 0);
+   assert(size > 0);
+   if (SIZE_MAX / nmemb < size) {
+      fail();
+   }
+   return xRealloc(ptr, nmemb * size);
+}
+
+void* xReallocArrayZero(void* ptr, size_t prevmemb, size_t newmemb, size_t size) {
+   assert((ptr == NULL) == (prevmemb == 0));
+
+   if (prevmemb == newmemb) {
+      return ptr;
+   }
+
+   void* ret = xReallocArray(ptr, newmemb, size);
+
+   if (newmemb > prevmemb) {
+      memset((unsigned char*)ret + prevmemb * size, '\0', (newmemb - prevmemb) * size);
+   }
+
+   return ret;
+}
+
+inline bool String_contains_i(const char* s1, const char* s2, bool multi) {
+   // we have a multi-string search term, handle as special case for performance reasons
+   if (multi && strstr(s2, "|")) {
+      size_t nNeedles;
+      char** needles = String_split(s2, '|', &nNeedles);
+      for (size_t i = 0; i < nNeedles; i++) {
+         if (strcasestr(s1, needles[i]) != NULL) {
+            String_freeArray(needles);
+            return true;
+         }
+      }
+      String_freeArray(needles);
+      return false;
+   } else {
+      return strcasestr(s1, s2) != NULL;
+   }
+}
+
 char* String_cat(const char* s1, const char* s2) {
    const size_t l1 = strlen(s1);
    const size_t l2 = strlen(s2);
+   if (SIZE_MAX - l1 <= l2) {
+      fail();
+   }
    char* out = xMalloc(l1 + l2 + 1);
    memcpy(out, s1, l1);
    memcpy(out + l1, s2, l2);
@@ -80,10 +139,10 @@ char* String_trim(const char* in) {
 }
 
 char** String_split(const char* s, char sep, size_t* n) {
-   const unsigned int rate = 10;
+   const size_t rate = 10;
    char** out = xCalloc(rate, sizeof(char*));
    size_t ctr = 0;
-   unsigned int blocks = rate;
+   size_t blocks = rate;
    const char* where;
    while ((where = strchr(s, sep)) != NULL) {
       size_t size = (size_t)(where - s);
@@ -118,40 +177,13 @@ void String_freeArray(char** s) {
    free(s);
 }
 
-char* String_getToken(const char* line, const unsigned short int numMatch) {
-   const size_t len = strlen(line);
-   char inWord = 0;
-   unsigned short int count = 0;
-   char match[50];
-
-   size_t foundCount = 0;
-
-   for (size_t i = 0; i < len; i++) {
-      char lastState = inWord;
-      inWord = line[i] == ' ' ? 0 : 1;
-
-      if (lastState == 0 && inWord == 1)
-         count++;
-
-      if (inWord == 1) {
-         if (count == numMatch && line[i] != ' ' && line[i] != '\0' && line[i] != '\n' && line[i] != (char)EOF) {
-            match[foundCount] = line[i];
-            foundCount++;
-         }
-      }
-   }
-
-   match[foundCount] = '\0';
-   return xStrdup(match);
-}
-
 char* String_readLine(FILE* fd) {
-   const unsigned int step = 1024;
-   unsigned int bufSize = step;
+   const size_t step = 1024;
+   size_t bufSize = step;
    char* buffer = xMalloc(step + 1);
    char* at = buffer;
    for (;;) {
-      char* ok = fgets(at, step + 1, fd);
+      const char* ok = fgets(at, step + 1, fd);
       if (!ok) {
          free(buffer);
          return NULL;
@@ -169,6 +201,18 @@ char* String_readLine(FILE* fd) {
       buffer = xRealloc(buffer, bufSize + 1);
       at = buffer + bufSize - step;
    }
+}
+
+size_t String_safeStrncpy(char* restrict dest, const char* restrict src, size_t size) {
+   assert(size > 0);
+
+   size_t i = 0;
+   for (; i < size - 1 && src[i]; i++)
+      dest[i] = src[i];
+
+   dest[i] = '\0';
+
+   return i;
 }
 
 int xAsprintf(char** strp, const char* fmt, ...) {
@@ -203,6 +247,14 @@ char* xStrdup(const char* str) {
       fail();
    }
    return data;
+}
+
+void free_and_xStrdup(char** ptr, const char* str) {
+   if (*ptr && String_eq(*ptr, str))
+      return;
+
+   free(*ptr);
+   *ptr = xStrdup(str);
 }
 
 char* xStrndup(const char* str, size_t len) {
@@ -260,4 +312,27 @@ ssize_t xReadfileat(openat_arg_t dirfd, const char* pathname, void* buffer, size
       return -errno;
 
    return readfd_internal(fd, buffer, count);
+}
+
+ssize_t full_write(int fd, const void* buf, size_t count) {
+   ssize_t written = 0;
+
+   while (count > 0) {
+      ssize_t r = write(fd, buf, count);
+      if (r < 0) {
+         if (errno == EINTR)
+            continue;
+
+         return r;
+      }
+
+      if (r == 0)
+         break;
+
+      written += r;
+      buf = (const unsigned char*)buf + r;
+      count -= (size_t)r;
+   }
+
+   return written;
 }

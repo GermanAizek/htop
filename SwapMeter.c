@@ -1,11 +1,16 @@
 /*
 htop - SwapMeter.c
 (C) 2004-2011 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
+#include "config.h" // IWYU pragma: keep
+
 #include "SwapMeter.h"
+
+#include <math.h>
+#include <stddef.h>
 
 #include "CRT.h"
 #include "Object.h"
@@ -14,11 +19,16 @@ in the source distribution for its full text.
 
 
 static const int SwapMeter_attributes[] = {
-   SWAP
+   SWAP,
+   SWAP_CACHE
 };
 
-static void SwapMeter_updateValues(Meter* this, char* buffer, size_t size) {
+static void SwapMeter_updateValues(Meter* this) {
+   char* buffer = this->txtBuffer;
+   size_t size = sizeof(this->txtBuffer);
    int written;
+
+   this->values[1] = NAN;   /* 'cached' not present on all platforms */
    Platform_setSwapValues(this);
 
    written = Meter_humanUnit(buffer, this->values[0], size);
@@ -32,12 +42,18 @@ static void SwapMeter_updateValues(Meter* this, char* buffer, size_t size) {
 static void SwapMeter_display(const Object* cast, RichString* out) {
    char buffer[50];
    const Meter* this = (const Meter*)cast;
-   RichString_write(out, CRT_colors[METER_TEXT], ":");
-   Meter_humanUnit(buffer, this->total, 50);
-   RichString_append(out, CRT_colors[METER_VALUE], buffer);
-   Meter_humanUnit(buffer, this->values[0], 50);
-   RichString_append(out, CRT_colors[METER_TEXT], " used:");
-   RichString_append(out, CRT_colors[METER_VALUE], buffer);
+   RichString_writeAscii(out, CRT_colors[METER_TEXT], ":");
+   Meter_humanUnit(buffer, this->total, sizeof(buffer));
+   RichString_appendAscii(out, CRT_colors[METER_VALUE], buffer);
+   Meter_humanUnit(buffer, this->values[SWAP_METER_USED], sizeof(buffer));
+   RichString_appendAscii(out, CRT_colors[METER_TEXT], " used:");
+   RichString_appendAscii(out, CRT_colors[METER_VALUE], buffer);
+
+   if (!isnan(this->values[SWAP_METER_CACHE])) {
+      Meter_humanUnit(buffer, this->values[SWAP_METER_CACHE], sizeof(buffer));
+      RichString_appendAscii(out, CRT_colors[METER_TEXT], " cache:");
+      RichString_appendAscii(out, CRT_colors[SWAP_CACHE], buffer);
+   }
 }
 
 const MeterClass SwapMeter_class = {
@@ -48,7 +64,7 @@ const MeterClass SwapMeter_class = {
    },
    .updateValues = SwapMeter_updateValues,
    .defaultMode = BAR_METERMODE,
-   .maxItems = 1,
+   .maxItems = 2,
    .total = 100.0,
    .attributes = SwapMeter_attributes,
    .name = "Swap",

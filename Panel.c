@@ -1,7 +1,7 @@
 /*
 htop - Panel.c
 (C) 2004-2011 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
@@ -30,7 +30,7 @@ const PanelClass Panel_class = {
    .eventHandler = Panel_selectByTyping,
 };
 
-Panel* Panel_new(int x, int y, int w, int h, bool owner, const ObjectClass* type, FunctionBar* fuBar) {
+Panel* Panel_new(int x, int y, int w, int h, const ObjectClass* type, bool owner, FunctionBar* fuBar) {
    Panel* this;
    this = xMalloc(sizeof(Panel));
    Object_setClass(this, Class(Panel));
@@ -49,17 +49,22 @@ void Panel_init(Panel* this, int x, int y, int w, int h, const ObjectClass* type
    this->y = y;
    this->w = w;
    this->h = h;
+   this->cursorX = 0;
+   this->cursorY = 0;
    this->eventHandlerState = NULL;
    this->items = Vector_new(type, owner, DEFAULT_SIZE);
    this->scrollV = 0;
    this->scrollH = 0;
    this->selected = 0;
    this->oldSelected = 0;
+   this->selectedLen = 0;
    this->needsRedraw = true;
+   this->cursorOn = false;
+   this->wasFocus = false;
    RichString_beginAllocated(this->header);
    this->defaultBar = fuBar;
    this->currentBar = fuBar;
-   this->selectionColor = CRT_colors[PANEL_SELECTION_FOCUS];
+   this->selectionColorId = PANEL_SELECTION_FOCUS;
 }
 
 void Panel_done(Panel* this) {
@@ -67,22 +72,20 @@ void Panel_done(Panel* this) {
    free(this->eventHandlerState);
    Vector_delete(this->items);
    FunctionBar_delete(this->defaultBar);
-   RichString_end(this->header);
+   RichString_delete(&this->header);
 }
 
-void Panel_setSelectionColor(Panel* this, int color) {
-   this->selectionColor = color;
+void Panel_setCursorToSelection(Panel* this) {
+   this->cursorY = this->y + this->selected - this->scrollV + 1;
+   this->cursorX = this->x + this->selectedLen - this->scrollH;
 }
 
-RichString* Panel_getHeader(Panel* this) {
-   assert (this != NULL);
-
-   this->needsRedraw = true;
-   return &(this->header);
+void Panel_setSelectionColor(Panel* this, ColorElements colorId) {
+   this->selectionColorId = colorId;
 }
 
 inline void Panel_setHeader(Panel* this, const char* header) {
-   RichString_write(&(this->header), CRT_colors[PANEL_HEADER_FOCUS], header);
+   RichString_writeWide(&(this->header), CRT_colors[PANEL_HEADER_FOCUS], header);
    this->needsRedraw = true;
 }
 
@@ -96,10 +99,6 @@ void Panel_move(Panel* this, int x, int y) {
 
 void Panel_resize(Panel* this, int w, int h) {
    assert (this != NULL);
-
-   if (RichString_sizeVal(this->header) > 0) {
-      h--;
-   }
 
    this->w = w;
    this->h = h;
@@ -181,13 +180,13 @@ void Panel_moveSelectedDown(Panel* this) {
    }
 }
 
-int Panel_getSelectedIndex(Panel* this) {
+int Panel_getSelectedIndex(const Panel* this) {
    assert (this != NULL);
 
    return this->selected;
 }
 
-int Panel_size(Panel* this) {
+int Panel_size(const Panel* this) {
    assert (this != NULL);
 
    return Vector_size(this->items);
@@ -217,7 +216,7 @@ void Panel_splice(Panel* this, Vector* from) {
    this->needsRedraw = true;
 }
 
-void Panel_draw(Panel* this, bool focus, bool highlightSelected) {
+void Panel_draw(Panel* this, bool force_redraw, bool focus, bool highlightSelected, bool hideFunctionBar) {
    assert (this != NULL);
 
    int size = Vector_size(this->items);
@@ -226,12 +225,21 @@ void Panel_draw(Panel* this, bool focus, bool highlightSelected) {
    int x = this->x;
    int h = this->h;
 
+   if (hideFunctionBar)
+      h++;
+
+   const int header_attr = focus
+                         ? CRT_colors[PANEL_HEADER_FOCUS]
+                         : CRT_colors[PANEL_HEADER_UNFOCUS];
+   if (force_redraw) {
+      if (Panel_printHeaderFn(this))
+         Panel_printHeader(this);
+      else
+         RichString_setAttr(&this->header, header_attr);
+   }
    int headerLen = RichString_sizeVal(this->header);
    if (headerLen > 0) {
-      int attr = focus
-               ? CRT_colors[PANEL_HEADER_FOCUS]
-               : CRT_colors[PANEL_HEADER_UNFOCUS];
-      attrset(attr);
+      attrset(header_attr);
       mvhline(y, x, ' ', this->w);
       if (scrollH < headerLen) {
          RichString_printoffnVal(this->header, y, x, scrollH,
@@ -239,14 +247,15 @@ void Panel_draw(Panel* this, bool focus, bool highlightSelected) {
       }
       attrset(CRT_colors[RESET_COLOR]);
       y++;
+      h--;
    }
 
    // ensure scroll area is on screen
    if (this->scrollV < 0) {
       this->scrollV = 0;
       this->needsRedraw = true;
-   } else if (this->scrollV >= size) {
-      this->scrollV = MAXIMUM(size - 1, 0);
+   } else if (this->scrollV > size - h) {
+      this->scrollV = MAXIMUM(size - h, 0);
       this->needsRedraw = true;
    }
    // ensure selection is on screen
@@ -262,13 +271,13 @@ void Panel_draw(Panel* this, bool focus, bool highlightSelected) {
    int upTo = MINIMUM(first + h, size);
 
    int selectionColor = focus
-                      ? this->selectionColor
+                      ? CRT_colors[this->selectionColorId]
                       : CRT_colors[PANEL_SELECTION_UNFOCUS];
 
-   if (this->needsRedraw) {
+   if (this->needsRedraw || force_redraw) {
       int line = 0;
       for (int i = first; line < h && i < upTo; i++) {
-         Object* itemObj = Vector_get(this->items, i);
+         const Object* itemObj = Vector_get(this->items, i);
          RichString_begin(item);
          Object_display(itemObj, &item);
          int itemLen = RichString_sizeVal(item);
@@ -286,21 +295,20 @@ void Panel_draw(Panel* this, bool focus, bool highlightSelected) {
             RichString_printoffnVal(item, y + line, x, scrollH, amt);
          if (item.highlightAttr)
             attrset(CRT_colors[RESET_COLOR]);
-         RichString_end(item);
+         RichString_delete(&item);
          line++;
       }
       while (line < h) {
          mvhline(y + line, x, ' ', this->w);
          line++;
       }
-      this->needsRedraw = false;
 
    } else {
-      Object* oldObj = Vector_get(this->items, this->oldSelected);
+      const Object* oldObj = Vector_get(this->items, this->oldSelected);
       RichString_begin(old);
       Object_display(oldObj, &old);
       int oldLen = RichString_sizeVal(old);
-      Object* newObj = Vector_get(this->items, this->selected);
+      const Object* newObj = Vector_get(this->items, this->selected);
       RichString_begin(new);
       Object_display(newObj, &new);
       int newLen = RichString_sizeVal(new);
@@ -316,20 +324,37 @@ void Panel_draw(Panel* this, bool focus, bool highlightSelected) {
          RichString_printoffnVal(new, y + this->selected - first, x,
             scrollH, MINIMUM(newLen - scrollH, this->w));
       attrset(CRT_colors[RESET_COLOR]);
-      RichString_end(new);
-      RichString_end(old);
+      RichString_delete(&new);
+      RichString_delete(&old);
    }
+
+   if (focus && (this->needsRedraw || force_redraw || !this->wasFocus)) {
+      if (Panel_drawFunctionBarFn(this))
+         Panel_drawFunctionBar(this, hideFunctionBar);
+      else if (!hideFunctionBar)
+         FunctionBar_draw(this->currentBar);
+   }
+
    this->oldSelected = this->selected;
-   move(0, 0);
+   this->wasFocus = focus;
+   this->needsRedraw = false;
+}
+
+static int Panel_headerHeight(const Panel* this) {
+   return RichString_sizeVal(this->header) > 0 ? 1 : 0;
 }
 
 bool Panel_onKey(Panel* this, int key) {
    assert (this != NULL);
 
-   int size = Vector_size(this->items);
+   const int size = Vector_size(this->items);
 
-   #define CLAMP_INDEX(var, delta, min, max) \
-      CLAMP((var) + (delta), (min), MAXIMUM(0, (max)))
+   #define PANEL_SCROLL(amount)                                                                                     \
+   do {                                                                                                             \
+      this->selected += (amount);                                                                                   \
+      this->scrollV = CLAMP(this->scrollV + (amount), 0, MAXIMUM(0, (size - this->h - Panel_headerHeight(this))));  \
+      this->needsRedraw = true;                                                                                     \
+   } while (0)
 
    switch (key) {
    case KEY_DOWN:
@@ -363,27 +388,19 @@ bool Panel_onKey(Panel* this, int key) {
       break;
 
    case KEY_PPAGE:
-      this->selected -= (this->h - 1);
-      this->scrollV = CLAMP_INDEX(this->scrollV, -(this->h - 1), 0, size - this->h);
-      this->needsRedraw = true;
+      PANEL_SCROLL(-(this->h - Panel_headerHeight(this)));
       break;
 
    case KEY_NPAGE:
-      this->selected += (this->h - 1);
-      this->scrollV = CLAMP_INDEX(this->scrollV, +(this->h - 1), 0, size - this->h);
-      this->needsRedraw = true;
+      PANEL_SCROLL(+(this->h - Panel_headerHeight(this)));
       break;
 
    case KEY_WHEELUP:
-      this->selected -= CRT_scrollWheelVAmount;
-      this->scrollV = CLAMP_INDEX(this->scrollV, -CRT_scrollWheelVAmount, 0, size - this->h);
-      this->needsRedraw = true;
+      PANEL_SCROLL(-CRT_scrollWheelVAmount);
       break;
 
    case KEY_WHEELDOWN:
-      this->selected += CRT_scrollWheelVAmount;
-      this->scrollV = CLAMP_INDEX(this->scrollV, +CRT_scrollWheelVAmount, 0, size - this->h);
-      this->needsRedraw = true;
+      PANEL_SCROLL(+CRT_scrollWheelVAmount);
       break;
 
    case KEY_HOME:
@@ -408,7 +425,7 @@ bool Panel_onKey(Panel* this, int key) {
       return false;
    }
 
-   #undef CLAMP_INDEX
+   #undef PANEL_SCROLL
 
    // ensure selection within bounds
    if (this->selected < 0 || size == 0) {
@@ -425,6 +442,9 @@ bool Panel_onKey(Panel* this, int key) {
 
 HandlerResult Panel_selectByTyping(Panel* this, int ch) {
    int size = Panel_size(this);
+
+   if (ch == '#')
+      return IGNORED;
 
    if (!this->eventHandlerState)
       this->eventHandlerState = xCalloc(100, sizeof(char));
@@ -443,15 +463,16 @@ HandlerResult Panel_selectByTyping(Panel* this, int ch) {
       }
 
       if (len < 99) {
-         buffer[len] = ch;
-         buffer[len+1] = '\0';
+         buffer[len] = (char) ch;
+         buffer[len + 1] = '\0';
       }
 
       for (int try = 0; try < 2; try++) {
          len = strlen(buffer);
          for (int i = 0; i < size; i++) {
             const char* cur = ((ListItem*) Panel_get(this, i))->value;
-            while (*cur == ' ') cur++;
+            while (*cur == ' ')
+               cur++;
             if (strncasecmp(cur, buffer, len) == 0) {
                Panel_setSelected(this, i);
                return HANDLED;
@@ -460,7 +481,7 @@ HandlerResult Panel_selectByTyping(Panel* this, int ch) {
 
          // if current word did not match,
          // retry considering the character the start of a new word.
-         buffer[0] = ch;
+         buffer[0] = (char) ch;
          buffer[1] = '\0';
       }
 
@@ -474,4 +495,17 @@ HandlerResult Panel_selectByTyping(Panel* this, int ch) {
    }
 
    return IGNORED;
+}
+
+int Panel_getCh(Panel* this) {
+   if (this->cursorOn) {
+      move(this->cursorY, this->cursorX);
+      curs_set(1);
+   } else {
+      curs_set(0);
+   }
+#ifdef HAVE_SET_ESCDELAY
+   set_escdelay(25);
+#endif
+   return getch();
 }

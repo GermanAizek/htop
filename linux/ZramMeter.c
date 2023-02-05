@@ -1,4 +1,6 @@
-#include "ZramMeter.h"
+#include "linux/ZramMeter.h"
+
+#include <stddef.h>
 
 #include "CRT.h"
 #include "Meter.h"
@@ -11,7 +13,9 @@ static const int ZramMeter_attributes[] = {
    ZRAM
 };
 
-static void ZramMeter_updateValues(Meter* this, char* buffer, size_t size) {
+static void ZramMeter_updateValues(Meter* this) {
+   char* buffer = this->txtBuffer;
+   size_t size = sizeof(this->txtBuffer);
    int written;
 
    Platform_setZramValues(this);
@@ -37,17 +41,19 @@ static void ZramMeter_updateValues(Meter* this, char* buffer, size_t size) {
 static void ZramMeter_display(const Object* cast, RichString* out) {
    char buffer[50];
    const Meter* this = (const Meter*)cast;
-   RichString_write(out, CRT_colors[METER_TEXT], ":");
-   Meter_humanUnit(buffer, this->total, sizeof(buffer));
 
-   RichString_append(out, CRT_colors[METER_VALUE], buffer);
+   RichString_writeAscii(out, CRT_colors[METER_TEXT], ":");
+
+   Meter_humanUnit(buffer, this->total, sizeof(buffer));
+   RichString_appendAscii(out, CRT_colors[METER_VALUE], buffer);
+
    Meter_humanUnit(buffer, this->values[0], sizeof(buffer));
-   RichString_append(out, CRT_colors[METER_TEXT], " used:");
-   RichString_append(out, CRT_colors[METER_VALUE], buffer);
+   RichString_appendAscii(out, CRT_colors[METER_TEXT], " used:");
+   RichString_appendAscii(out, CRT_colors[METER_VALUE], buffer);
 
    Meter_humanUnit(buffer, this->values[1], sizeof(buffer));
-   RichString_append(out, CRT_colors[METER_TEXT], " uncompressed:");
-   RichString_append(out, CRT_colors[METER_VALUE], buffer);
+   RichString_appendAscii(out, CRT_colors[METER_TEXT], " uncompressed:");
+   RichString_appendAscii(out, CRT_colors[METER_VALUE], buffer);
 }
 
 const MeterClass ZramMeter_class = {

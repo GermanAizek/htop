@@ -4,23 +4,25 @@
 htop - DragonFlyBSDProcessList.h
 (C) 2014 Hisham H. Muhammad
 (C) 2017 Diederik de Groot
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
+#include <sys/types.h>  // required for kvm.h
 #include <kvm.h>
-#include <sys/param.h>
 #include <osreldate.h>
-#include <sys/kinfo.h>
-#include <kinfo.h>
+#include <stdbool.h>
 #include <sys/jail.h>
-#include <sys/uio.h>
+#include <sys/param.h>
 #include <sys/resource.h>
-#include "Hashtable.h"
-#include "DragonFlyBSDProcess.h"
+#include <sys/uio.h>
 
-#define JAIL_ERRMSGLEN 1024
-extern char jail_errmsg[JAIL_ERRMSGLEN];
+#include "Hashtable.h"
+#include "ProcessList.h"
+#include "UsersTable.h"
+
+#include "dragonflybsd/DragonFlyBSDProcess.h"
+
 
 typedef struct CPUData_ {
    double userPercent;
@@ -51,14 +53,12 @@ typedef struct DragonFlyBSDProcessList_ {
    Hashtable* jails;
 } DragonFlyBSDProcessList;
 
-ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, uid_t userId);
+ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* dynamicMeters, Hashtable* dynamicColumns, Hashtable* pidMatchList, uid_t userId);
 
 void ProcessList_delete(ProcessList* this);
 
-char* DragonFlyBSDProcessList_readProcessName(kvm_t* kd, struct kinfo_proc* kproc, int* basenameEnd);
-
-char* DragonFlyBSDProcessList_readJailName(DragonFlyBSDProcessList* dfpl, int jailid);
-
 void ProcessList_goThroughEntries(ProcessList* super, bool pauseProcessUpdate);
+
+bool ProcessList_isCPUonline(const ProcessList* super, unsigned int id);
 
 #endif

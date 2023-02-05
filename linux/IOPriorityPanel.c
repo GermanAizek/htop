@@ -1,11 +1,11 @@
 /*
 htop - IOPriorityPanel.c
 (C) 2004-2012 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include "IOPriorityPanel.h"
+#include "linux/IOPriorityPanel.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -14,10 +14,11 @@ in the source distribution for its full text.
 #include "ListItem.h"
 #include "Object.h"
 #include "XUtils.h"
+#include "IOPriority.h"
 
 
 Panel* IOPriorityPanel_new(IOPriority currPrio) {
-   Panel* this = Panel_new(1, 1, 1, 1, true, Class(ListItem), FunctionBar_newEnterEsc("Set    ", "Cancel "));
+   Panel* this = Panel_new(1, 1, 1, 1, Class(ListItem), true, FunctionBar_newEnterEsc("Set    ", "Cancel "));
 
    Panel_setHeader(this, "IO Priority:");
    Panel_add(this, (Object*) ListItem_new("None (based on nice)", IOPriority_None));

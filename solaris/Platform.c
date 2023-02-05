@@ -3,15 +3,28 @@ htop - solaris/Platform.c
 (C) 2014 Hisham H. Muhammad
 (C) 2015 David C. Hunt
 (C) 2017,2018 Guy M. Broome
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include "Platform.h"
+#include "solaris/Platform.h"
+
+#include <kstat.h>
+#include <math.h>
+#include <string.h>
+#include <time.h>
+#include <utmpx.h>
+#include <sys/loadavg.h>
+#include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/var.h>
+
 #include "Macros.h"
 #include "Meter.h"
 #include "CPUMeter.h"
 #include "MemoryMeter.h"
+#include "MemorySwapMeter.h"
 #include "SwapMeter.h"
 #include "TasksMeter.h"
 #include "LoadAverageMeter.h"
@@ -19,25 +32,23 @@ in the source distribution for its full text.
 #include "DateMeter.h"
 #include "DateTimeMeter.h"
 #include "HostnameMeter.h"
+#include "SysArchMeter.h"
 #include "UptimeMeter.h"
 #include "zfs/ZfsArcMeter.h"
 #include "zfs/ZfsCompressedArcMeter.h"
 #include "SolarisProcess.h"
 #include "SolarisProcessList.h"
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <utmpx.h>
-#include <sys/loadavg.h>
-#include <string.h>
-#include <kstat.h>
-#include <time.h>
-#include <math.h>
-#include <sys/var.h>
 
+const ScreenDefaults Platform_defaultScreens[] = {
+   {
+      .name = "Default",
+      .columns = "PID LWPID USER PRIORITY NICE M_VIRT M_RESIDENT STATE PERCENT_CPU PERCENT_MEM TIME Command",
+      .sortKey = "PERCENT_CPU",
+   },
+};
 
-double plat_loadavg[3] = {0};
+const unsigned int Platform_numberOfDefaultScreens = ARRAYSIZE(Platform_defaultScreens);
 
 const SignalItem Platform_signals[] = {
    { .name = " 0 Cancel",      .number =  0 },
@@ -86,8 +97,6 @@ const SignalItem Platform_signals[] = {
 
 const unsigned int Platform_numberOfSignals = ARRAYSIZE(Platform_signals);
 
-ProcessField Platform_defaultFields[] = { PID, LWPID, USER, PRIORITY, NICE, M_VIRT, M_RESIDENT, STATE, PERCENT_CPU, PERCENT_MEM, TIME, COMM, 0 };
-
 const MeterClass* const Platform_meterTypes[] = {
    &CPUMeter_class,
    &ClockMeter_class,
@@ -97,9 +106,11 @@ const MeterClass* const Platform_meterTypes[] = {
    &LoadMeter_class,
    &MemoryMeter_class,
    &SwapMeter_class,
+   &MemorySwapMeter_class,
    &TasksMeter_class,
    &BatteryMeter_class,
    &HostnameMeter_class,
+   &SysArchMeter_class,
    &UptimeMeter_class,
    &AllCPUsMeter_class,
    &AllCPUs2Meter_class,
@@ -119,12 +130,9 @@ const MeterClass* const Platform_meterTypes[] = {
    NULL
 };
 
-int Platform_numberOfFields = LAST_PROCESSFIELD;
-
-extern char Process_pidFormat[20];
-
-void Platform_init(void) {
+bool Platform_init(void) {
    /* no platform-specific setup needed */
+   return true;
 }
 
 void Platform_done(void) {
@@ -136,13 +144,13 @@ void Platform_setBindings(Htop_Action* keys) {
    (void) keys;
 }
 
-int Platform_getUptime() {
+int Platform_getUptime(void) {
    int boot_time = 0;
    int curr_time = time(NULL);
    struct utmpx* ent;
 
    while (( ent = getutxent() )) {
-      if ( !strcmp("system boot", ent->ut_line )) {
+      if ( String_eq("system boot", ent->ut_line )) {
          boot_time = ent->ut_tv.tv_sec;
       }
    }
@@ -153,18 +161,24 @@ int Platform_getUptime() {
 }
 
 void Platform_getLoadAverage(double* one, double* five, double* fifteen) {
-   getloadavg( plat_loadavg, 3 );
+   double plat_loadavg[3];
+   if (getloadavg( plat_loadavg, 3 ) < 0) {
+      *one = NAN;
+      *five = NAN;
+      *fifteen = NAN;
+      return;
+   }
    *one = plat_loadavg[LOADAVG_1MIN];
    *five = plat_loadavg[LOADAVG_5MIN];
    *fifteen = plat_loadavg[LOADAVG_15MIN];
 }
 
-int Platform_getMaxPid() {
+int Platform_getMaxPid(void) {
    int vproc = 32778; // Reasonable Solaris default
 
    kstat_ctl_t* kc = kstat_open();
    if (kc != NULL) {
-      kstat_t* kshandle = kstat_lookup(kc, "unix", 0, "var");
+      kstat_t* kshandle = kstat_lookup_wrapper(kc, "unix", 0, "var");
       if (kshandle != NULL) {
          kstat_read(kc, kshandle, NULL);
 
@@ -179,9 +193,9 @@ int Platform_getMaxPid() {
    return vproc;
 }
 
-double Platform_setCPUValues(Meter* this, int cpu) {
+double Platform_setCPUValues(Meter* this, unsigned int cpu) {
    const SolarisProcessList* spl = (const SolarisProcessList*) this->pl;
-   int cpus = this->pl->cpuCount;
+   unsigned int cpus = this->pl->existingCPUs;
    const CPUData* cpuData = NULL;
 
    if (cpus == 1) {
@@ -189,6 +203,11 @@ double Platform_setCPUValues(Meter* this, int cpu) {
       cpuData = &(spl->cpus[0]);
    } else {
       cpuData = &(spl->cpus[cpu]);
+   }
+
+   if (!cpuData->online) {
+      this->curItems = 0;
+      return NAN;
    }
 
    double percent;
@@ -209,7 +228,7 @@ double Platform_setCPUValues(Meter* this, int cpu) {
 
    percent = isnan(percent) ? 0.0 : CLAMP(percent, 0.0, 100.0);
 
-   v[CPU_METER_FREQUENCY] = NAN;
+   v[CPU_METER_FREQUENCY] = cpuData->frequency;
    v[CPU_METER_TEMPERATURE] = NAN;
 
    return percent;
@@ -218,15 +237,18 @@ double Platform_setCPUValues(Meter* this, int cpu) {
 void Platform_setMemoryValues(Meter* this) {
    const ProcessList* pl = this->pl;
    this->total = pl->totalMem;
-   this->values[0] = pl->usedMem;
-   this->values[1] = pl->buffersMem;
-   this->values[2] = pl->cachedMem;
+   this->values[MEMORY_METER_USED] = pl->usedMem;
+   this->values[MEMORY_METER_BUFFERS] = pl->buffersMem;
+   // this->values[MEMORY_METER_SHARED] = "shared memory, like tmpfs and shm"
+   this->values[MEMORY_METER_CACHE] = pl->cachedMem;
+   // this->values[MEMORY_METER_AVAILABLE] = "available memory"
 }
 
 void Platform_setSwapValues(Meter* this) {
    const ProcessList* pl = this->pl;
    this->total = pl->totalSwap;
-   this->values[0] = pl->usedSwap;
+   this->values[SWAP_METER_USED] = pl->usedSwap;
+   this->values[SWAP_METER_CACHE] = NAN;
 }
 
 void Platform_setZfsArcValues(Meter* this) {
@@ -245,16 +267,21 @@ static int Platform_buildenv(void* accum, struct ps_prochandle* Phandle, uintptr
    envAccum* accump = accum;
    (void) Phandle;
    (void) addr;
+
    size_t thissz = strlen(str);
-   if ((thissz + 2) > (accump->capacity - accump->size)) {
-      accump->env = xRealloc(accump->env, accump->capacity *= 2);
+
+   while ((thissz + 2) > (accump->capacity - accump->size)) {
+      if (accump->capacity > (SIZE_MAX / 2))
+         return 1;
+
+      accump->capacity *= 2;
+      accump->env = xRealloc(accump->env, accump->capacity);
    }
-   if ((thissz + 2) > (accump->capacity - accump->size)) {
-      return 1;
-   }
-   strlcpy( accump->env + accump->size, str, (accump->capacity - accump->size));
-   strncpy( accump->env + accump->size + thissz + 1, "\n", 1);
-   accump->size = accump->size + thissz + 1;
+
+   strlcpy( accump->env + accump->size, str, accump->capacity - accump->size);
+   strncpy( accump->env + accump->size + thissz + 1, "\n", 2);
+
+   accump->size += thissz + 1;
    return 0;
 }
 
@@ -265,7 +292,7 @@ char* Platform_getProcessEnv(pid_t pid) {
    struct ps_prochandle* Phandle;
 
    if ((Phandle = Pgrab(realpid, PGRAB_RDONLY, &graberr)) == NULL) {
-      return "Unable to read process environment.";
+      return NULL;
    }
 
    envBuilder.capacity = 4096;
@@ -277,18 +304,13 @@ char* Platform_getProcessEnv(pid_t pid) {
    Prelease(Phandle, 0);
 
    strncpy( envBuilder.env + envBuilder.size, "\0", 1);
-   return envBuilder.env;
-}
 
-char* Platform_getInodeFilename(pid_t pid, ino_t inode) {
-    (void)pid;
-    (void)inode;
-    return NULL;
+   return xRealloc(envBuilder.env, envBuilder.size + 1);
 }
 
 FileLocks_ProcessData* Platform_getProcessLocks(pid_t pid) {
-    (void)pid;
-    return NULL;
+   (void)pid;
+   return NULL;
 }
 
 bool Platform_getDiskIO(DiskIOData* data) {
@@ -297,15 +319,9 @@ bool Platform_getDiskIO(DiskIOData* data) {
    return false;
 }
 
-bool Platform_getNetworkIO(unsigned long int* bytesReceived,
-                           unsigned long int* packetsReceived,
-                           unsigned long int* bytesTransmitted,
-                           unsigned long int* packetsTransmitted) {
+bool Platform_getNetworkIO(NetworkIOData* data) {
    // TODO
-   *bytesReceived = 0;
-   *packetsReceived = 0;
-   *bytesTransmitted = 0;
-   *packetsTransmitted = 0;
+   (void)data;
    return false;
 }
 

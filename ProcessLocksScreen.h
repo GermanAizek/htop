@@ -3,7 +3,7 @@
 /*
 htop - ProcessLocksScreen.h
 (C) 2020 htop dev team
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
@@ -26,8 +26,8 @@ typedef struct FileLocks_Data_ {
    char* exclusive;
    char* readwrite;
    char* filename;
-   int id;
-   unsigned int dev[2];
+   int fd;
+   dev_t dev;
    uint64_t inode;
    uint64_t start;
    uint64_t end;

@@ -2,11 +2,11 @@
 htop - OpenBSDProcess.c
 (C) 2015 Hisham H. Muhammad
 (C) 2015 Michael McConville
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include "OpenBSDProcess.h"
+#include "openbsd/OpenBSDProcess.h"
 
 #include <stdlib.h>
 
@@ -16,7 +16,7 @@ in the source distribution for its full text.
 #include "XUtils.h"
 
 
-ProcessFieldData Process_fields[] = {
+const ProcessFieldData Process_fields[LAST_PROCESSFIELD] = {
    [0] = {
       .name = "",
       .title = NULL,
@@ -25,9 +25,10 @@ ProcessFieldData Process_fields[] = {
    },
    [PID] = {
       .name = "PID",
-      .title = "    PID ",
+      .title = "PID",
       .description = "Process/thread ID",
       .flags = 0,
+      .pidColumn = true,
    },
    [COMM] = {
       .name = "Command",
@@ -43,45 +44,51 @@ ProcessFieldData Process_fields[] = {
    },
    [PPID] = {
       .name = "PPID",
-      .title = "   PPID ",
+      .title = "PPID",
       .description = "Parent process ID",
       .flags = 0,
+      .pidColumn = true,
    },
    [PGRP] = {
       .name = "PGRP",
-      .title = "   PGRP ",
+      .title = "PGRP",
       .description = "Process group ID",
       .flags = 0,
+      .pidColumn = true,
    },
    [SESSION] = {
       .name = "SESSION",
-      .title = "   SESN ",
+      .title = "SESN",
       .description = "Process's session ID",
       .flags = 0,
+      .pidColumn = true,
    },
-   [TTY_NR] = {
-      .name = "TTY_NR",
-      .title = "    TTY ",
+   [TTY] = {
+      .name = "TTY",
+      .title = "TTY      ",
       .description = "Controlling terminal",
       .flags = 0,
    },
    [TPGID] = {
       .name = "TPGID",
-      .title = "  TPGID ",
+      .title = "TPGID",
       .description = "Process ID of the fg process group of the controlling terminal",
       .flags = 0,
+      .pidColumn = true,
    },
    [MINFLT] = {
       .name = "MINFLT",
       .title = "     MINFLT ",
       .description = "Number of minor faults which have not required loading a memory page from disk",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [MAJFLT] = {
       .name = "MAJFLT",
       .title = "     MAJFLT ",
       .description = "Number of major faults which have required loading a memory page from disk",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [PRIORITY] = {
       .name = "PRIORITY",
@@ -101,6 +108,12 @@ ProcessFieldData Process_fields[] = {
       .description = "Time the process was started",
       .flags = 0,
    },
+   [ELAPSED] = {
+      .name = "ELAPSED",
+      .title = "ELAPSED  ",
+      .description = "Time since the process was started",
+      .flags = 0,
+   },
    [PROCESSOR] = {
       .name = "PROCESSOR",
       .title = "CPU ",
@@ -112,40 +125,47 @@ ProcessFieldData Process_fields[] = {
       .title = " VIRT ",
       .description = "Total program size in virtual memory",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [M_RESIDENT] = {
       .name = "M_RESIDENT",
       .title = "  RES ",
       .description = "Resident set size, size of the text and data sections, plus stack usage",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [ST_UID] = {
       .name = "ST_UID",
-      .title = "  UID ",
+      .title = "UID",
       .description = "User ID of the process owner",
       .flags = 0,
    },
    [PERCENT_CPU] = {
       .name = "PERCENT_CPU",
-      .title = "CPU% ",
+      .title = " CPU%",
       .description = "Percentage of the CPU time the process used in the last sampling",
       .flags = 0,
+      .defaultSortDesc = true,
+      .autoWidth = true,
    },
    [PERCENT_NORM_CPU] = {
       .name = "PERCENT_NORM_CPU",
       .title = "NCPU%",
       .description = "Normalized percentage of the CPU time the process used in the last sampling (normalized by cpu count)",
       .flags = 0,
+      .defaultSortDesc = true,
+      .autoWidth = true,
    },
    [PERCENT_MEM] = {
       .name = "PERCENT_MEM",
       .title = "MEM% ",
       .description = "Percentage of the memory the process is using, based on resident memory size",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [USER] = {
       .name = "USER",
-      .title = "USER      ",
+      .title = "USER       ",
       .description = "Username of the process owner (or user ID if name cannot be determined)",
       .flags = 0,
    },
@@ -154,6 +174,7 @@ ProcessFieldData Process_fields[] = {
       .title = "  TIME+  ",
       .description = "Total time the process has spent in user and system time",
       .flags = 0,
+      .defaultSortDesc = true,
    },
    [NLWP] = {
       .name = "NLWP",
@@ -163,30 +184,28 @@ ProcessFieldData Process_fields[] = {
    },
    [TGID] = {
       .name = "TGID",
-      .title = "   TGID ",
+      .title = "TGID",
       .description = "Thread group ID (i.e. process ID)",
       .flags = 0,
+      .pidColumn = true,
    },
-   [LAST_PROCESSFIELD] = {
-      .name = "*** report bug! ***",
-      .title = NULL,
-      .description = NULL,
+   [PROC_COMM] = {
+      .name = "COMM",
+      .title = "COMM            ",
+      .description = "comm string of the process",
       .flags = 0,
    },
-};
+   [CWD] = {
+      .name = "CWD",
+      .title = "CWD                       ",
+      .description = "The current working directory of the process",
+      .flags = PROCESS_FLAG_CWD,
+   },
 
-ProcessPidColumn Process_pidColumns[] = {
-   { .id = PID, .label = "PID" },
-   { .id = PPID, .label = "PPID" },
-   { .id = TPGID, .label = "TPGID" },
-   { .id = TGID, .label = "TGID" },
-   { .id = PGRP, .label = "PGRP" },
-   { .id = SESSION, .label = "SESN" },
-   { .id = 0, .label = NULL },
 };
 
 Process* OpenBSDProcess_new(const Settings* settings) {
-   OpenBSDProcess* this = xCalloc(sizeof(OpenBSDProcess), 1);
+   OpenBSDProcess* this = xCalloc(1, sizeof(OpenBSDProcess));
    Object_setClass(this, Class(OpenBSDProcess));
    Process_init(&this->super, settings);
    return &this->super;
@@ -209,28 +228,20 @@ static void OpenBSDProcess_writeField(const Process* this, RichString* str, Proc
       Process_writeField(this, str, field);
       return;
    }
-   RichString_append(str, attr, buffer);
+   RichString_appendWide(str, attr, buffer);
 }
 
-static long OpenBSDProcess_compare(const void* v1, const void* v2) {
-   const OpenBSDProcess *p1, *p2;
-   const Settings *settings = ((const Process*)v1)->settings;
-
-   if (settings->direction == 1) {
-      p1 = (const OpenBSDProcess*)v1;
-      p2 = (const OpenBSDProcess*)v2;
-   } else {
-      p2 = (const OpenBSDProcess*)v1;
-      p1 = (const OpenBSDProcess*)v2;
-   }
+static int OpenBSDProcess_compareByKey(const Process* v1, const Process* v2, ProcessField key) {
+   const OpenBSDProcess* p1 = (const OpenBSDProcess*)v1;
+   const OpenBSDProcess* p2 = (const OpenBSDProcess*)v2;
 
    // remove if actually used
    (void)p1; (void)p2;
 
-   switch (settings->sortKey) {
+   switch (key) {
    // add OpenBSD-specific fields here
    default:
-      return Process_compare(v1, v2);
+      return Process_compareByKey_Base(v1, v2, key);
    }
 }
 
@@ -239,11 +250,8 @@ const ProcessClass OpenBSDProcess_class = {
       .extends = Class(Process),
       .display = Process_display,
       .delete = Process_delete,
-      .compare = OpenBSDProcess_compare
+      .compare = Process_compare
    },
    .writeField = OpenBSDProcess_writeField,
+   .compareByKey = OpenBSDProcess_compareByKey
 };
-
-bool Process_isThread(const Process* this) {
-   return Process_isKernelThread(this) || Process_isUserlandThread(this);
-}

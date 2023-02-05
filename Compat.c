@@ -1,7 +1,7 @@
 /*
 htop - Compat.c
 (C) 2020 htop dev team
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
@@ -11,11 +11,18 @@ in the source distribution for its full text.
 
 #include <errno.h>
 #include <fcntl.h> // IWYU pragma: keep
+#include <limits.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h> // IWYU pragma: keep
 
 #include "XUtils.h" // IWYU pragma: keep
+
+
+/* GNU/Hurd does not have PATH_MAX in limits.h */
+#ifndef PATH_MAX
+# define PATH_MAX 4096
+#endif
 
 
 int Compat_faccessat(int dirfd,
@@ -37,14 +44,14 @@ int Compat_faccessat(int dirfd,
 #endif
 
    // Error out on unsupported configurations
-   if (dirfd != AT_FDCWD || mode != F_OK) {
+   if (dirfd != (int)AT_FDCWD || mode != F_OK) {
       errno = EINVAL;
       return -1;
    }
 
    // Fallback to stat(2)/lstat(2) depending on flags
    struct stat statinfo;
-   if(flags) {
+   if (flags) {
       ret = lstat(pathname, &statinfo);
    } else {
       ret = stat(pathname, &statinfo);
@@ -116,4 +123,34 @@ ssize_t Compat_readlinkat(int dirfd,
    return readlink(path, buf, bufsize);
 
 #endif
+}
+
+ssize_t Compat_readlink(openat_arg_t dirfd,
+                        const char* pathname,
+                        char* buf,
+                        size_t bufsize) {
+
+#ifdef HAVE_OPENAT
+
+   char fdPath[32];
+   xSnprintf(fdPath, sizeof(fdPath), "/proc/self/fd/%d", dirfd);
+
+   char dirPath[PATH_MAX + 1];
+   ssize_t r = readlink(fdPath, dirPath, sizeof(dirPath) - 1);
+   if (r < 0)
+      return r;
+
+   dirPath[r] = '\0';
+
+   char linkPath[PATH_MAX + 1];
+   xSnprintf(linkPath, sizeof(linkPath), "%s/%s", dirPath, pathname);
+
+#else
+
+   char linkPath[PATH_MAX + 1];
+   xSnprintf(linkPath, sizeof(linkPath), "%s/%s", dirfd, pathname);
+
+#endif /* HAVE_OPENAT */
+
+   return readlink(linkPath, buf, bufsize);
 }

@@ -1,7 +1,7 @@
 /*
 htop - MetersPanel.c
 (C) 2004-2011 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
@@ -20,9 +20,9 @@ in the source distribution for its full text.
 
 // Note: In code the meters are known to have bar/text/graph "Modes", but in UI
 // we call them "Styles".
-static const char* const MetersFunctions[] = {"Style ", "Move  ", "                                       ", "Delete", "Done  ", NULL};
-static const char* const MetersKeys[] = {"Space", "Enter", "  ", "Del", "F10"};
-static int MetersEvents[] = {' ', 13, ERR, KEY_DC, KEY_F(10)};
+static const char* const MetersFunctions[] = {"Style ", "Move  ", "                                         ", "Delete", "Done  ", NULL};
+static const char* const MetersKeys[] = {"Space", "Enter", "", "Del", "F10"};
+static const int MetersEvents[] = {' ', 13, ERR, KEY_DC, KEY_F(10)};
 
 // We avoid UTF-8 arrows ← → here as they might display full-width on Chinese
 // terminals, breaking our aligning.
@@ -30,10 +30,10 @@ static int MetersEvents[] = {' ', 13, ERR, KEY_DC, KEY_F(10)};
 // considered "Ambiguous characters".
 static const char* const MetersMovingFunctions[] = {"Style ", "Lock  ", "Up    ", "Down  ", "Left  ", "Right ", "       ", "Delete", "Done  ", NULL};
 static const char* const MetersMovingKeys[] = {"Space", "Enter", "Up", "Dn", "<-", "->", "  ", "Del", "F10"};
-static int MetersMovingEvents[] = {' ', 13, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, ERR, KEY_DC, KEY_F(10)};
+static const int MetersMovingEvents[] = {' ', 13, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT, ERR, KEY_DC, KEY_F(10)};
 static FunctionBar* Meters_movingBar = NULL;
 
-void MetersPanel_cleanup() {
+void MetersPanel_cleanup(void) {
    if (Meters_movingBar) {
       FunctionBar_delete(Meters_movingBar);
       Meters_movingBar = NULL;
@@ -55,13 +55,12 @@ void MetersPanel_setMoving(MetersPanel* this, bool moving) {
       selected->moving = moving;
    }
    if (!moving) {
-      Panel_setSelectionColor(super, CRT_colors[PANEL_SELECTION_FOCUS]);
+      Panel_setSelectionColor(super, PANEL_SELECTION_FOCUS);
       Panel_setDefaultBar(super);
    } else {
-      Panel_setSelectionColor(super, CRT_colors[PANEL_SELECTION_FOLLOW]);
+      Panel_setSelectionColor(super, PANEL_SELECTION_FOLLOW);
       super->currentBar = Meters_movingBar;
    }
-   FunctionBar_draw(this->super.currentBar);
 }
 
 static inline bool moveToNeighbor(MetersPanel* this, MetersPanel* neighbor, int selected) {
@@ -92,7 +91,7 @@ static HandlerResult MetersPanel_eventHandler(Panel* super, int ch) {
    HandlerResult result = IGNORED;
    bool sideMove = false;
 
-   switch(ch) {
+   switch (ch) {
       case 0x0a:
       case 0x0d:
       case KEY_ENTER:
@@ -111,7 +110,8 @@ static HandlerResult MetersPanel_eventHandler(Panel* super, int ch) {
             break;
          Meter* meter = (Meter*) Vector_get(this->meters, selected);
          int mode = meter->mode + 1;
-         if (mode == LAST_METERMODE) mode = 1;
+         if (mode == LAST_METERMODE)
+            mode = 1;
          Meter_setMode(meter, mode);
          Panel_set(super, selected, (Object*) Meter_toListItem(meter, this->moving));
          result = HANDLED;
@@ -185,9 +185,9 @@ static HandlerResult MetersPanel_eventHandler(Panel* super, int ch) {
    if (result == HANDLED || sideMove) {
       Header* header = this->scr->header;
       this->settings->changed = true;
+      this->settings->lastUpdate++;
       Header_calculateHeight(header);
-      Header_draw(header);
-      ScreenManager_resize(this->scr, this->scr->x1, header->height, this->scr->x2, this->scr->y2);
+      ScreenManager_resize(this->scr);
    }
    return result;
 }
@@ -217,7 +217,7 @@ MetersPanel* MetersPanel_new(Settings* settings, const char* header, Vector* met
    this->leftNeighbor = NULL;
    Panel_setHeader(super, header);
    for (int i = 0; i < Vector_size(meters); i++) {
-      Meter* meter = (Meter*) Vector_get(meters, i);
+      const Meter* meter = (const Meter*) Vector_get(meters, i);
       Panel_add(super, (Object*) Meter_toListItem(meter, false));
    }
    return this;

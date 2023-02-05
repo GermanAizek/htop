@@ -1,13 +1,12 @@
 /*
 htop - DarwinProcessList.c
 (C) 2014 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include "DarwinProcessList.h"
+#include "darwin/DarwinProcessList.h"
 
-#include <err.h>
 #include <errno.h>
 #include <libproc.h>
 #include <stdbool.h>
@@ -20,65 +19,26 @@ in the source distribution for its full text.
 #include <sys/sysctl.h>
 
 #include "CRT.h"
-#include "DarwinProcess.h"
 #include "ProcessList.h"
-#include "zfs/openzfs_sysctl.h"
+#include "darwin/DarwinProcess.h"
+#include "darwin/Platform.h"
+#include "darwin/PlatformHelpers.h"
+#include "generic/openzfs_sysctl.h"
 #include "zfs/ZfsArcStats.h"
 
-
-struct kern {
-   short int version[3];
-};
-
-static void GetKernelVersion(struct kern* k) {
-   static short int version_[3] = {0};
-   if (!version_[0]) {
-      // just in case it fails someday
-      version_[0] = version_[1] = version_[2] = -1;
-      char str[256] = {0};
-      size_t size = sizeof(str);
-      int ret = sysctlbyname("kern.osrelease", str, &size, NULL, 0);
-      if (ret == 0) {
-         sscanf(str, "%hd.%hd.%hd", &version_[0], &version_[1], &version_[2]);
-      }
-   }
-   memcpy(k->version, version_, sizeof(version_));
-}
-
-/* compare the given os version with the one installed returns:
-0 if equals the installed version
-positive value if less than the installed version
-negative value if more than the installed version
-*/
-static int CompareKernelVersion(short int major, short int minor, short int component) {
-   struct kern k;
-   GetKernelVersion(&k);
-
-   if (k.version[0] != major) {
-      return k.version[0] - major;
-   }
-   if (k.version[1] != minor) {
-      return k.version[1] - minor;
-   }
-   if (k.version[2] != component) {
-      return k.version[2] - component;
-   }
-
-   return 0;
-}
 
 static void ProcessList_getHostInfo(host_basic_info_data_t* p) {
    mach_msg_type_number_t info_size = HOST_BASIC_INFO_COUNT;
 
    if (0 != host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t)p, &info_size)) {
-      CRT_fatalError("Unable to retrieve host info\n");
+      CRT_fatalError("Unable to retrieve host info");
    }
 }
 
 static void ProcessList_freeCPULoadInfo(processor_cpu_load_info_t* p) {
    if (NULL != p && NULL != *p) {
       if (0 != munmap(*p, vm_page_size)) {
-         CRT_fatalError("Unable to free old CPU load information\n");
+         CRT_fatalError("Unable to free old CPU load information");
       }
       *p = NULL;
    }
@@ -90,7 +50,7 @@ static unsigned ProcessList_allocateCPULoadInfo(processor_cpu_load_info_t* p) {
 
    // TODO Improving the accuracy of the load counts woule help a lot.
    if (0 != host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &cpu_count, (processor_info_array_t*)p, &info_size)) {
-      CRT_fatalError("Unable to retrieve CPU info\n");
+      CRT_fatalError("Unable to retrieve CPU info");
    }
 
    return cpu_count;
@@ -100,7 +60,7 @@ static void ProcessList_getVMStats(vm_statistics_t p) {
    mach_msg_type_number_t info_size = HOST_VM_INFO_COUNT;
 
    if (host_statistics(mach_host_self(), HOST_VM_INFO, (host_info_t)p, &info_size) != 0) {
-      CRT_fatalError("Unable to retrieve VM statistics\n");
+      CRT_fatalError("Unable to retrieve VM statistics");
    }
 }
 
@@ -108,12 +68,13 @@ static struct kinfo_proc* ProcessList_getKInfoProcs(size_t* count) {
    int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0 };
    struct kinfo_proc* processes = NULL;
 
-   for (int retry = 3; retry > 0; retry--) {
+   for (unsigned int retry = 0; retry < 4; retry++) {
       size_t size = 0;
       if (sysctl(mib, 4, NULL, &size, NULL, 0) < 0 || size == 0) {
          CRT_fatalError("Unable to get size of kproc_infos");
       }
 
+      size += 16 * retry * retry * sizeof(struct kinfo_proc);
       processes = xRealloc(processes, size);
 
       if (sysctl(mib, 4, processes, &size, NULL, 0) == 0) {
@@ -128,13 +89,15 @@ static struct kinfo_proc* ProcessList_getKInfoProcs(size_t* count) {
    CRT_fatalError("Unable to get kinfo_procs");
 }
 
-ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidMatchList, uid_t userId) {
+ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* dynamicMeters, Hashtable* dynamicColumns, Hashtable* pidMatchList, uid_t userId) {
    DarwinProcessList* this = xCalloc(1, sizeof(DarwinProcessList));
 
-   ProcessList_init(&this->super, Class(Process), usersTable, pidMatchList, userId);
+   ProcessList_init(&this->super, Class(DarwinProcess), usersTable, dynamicMeters, dynamicColumns, pidMatchList, userId);
 
    /* Initialize the CPU information */
-   this->super.cpuCount = ProcessList_allocateCPULoadInfo(&this->prev_load);
+   this->super.activeCPUs = ProcessList_allocateCPULoadInfo(&this->prev_load);
+   // TODO: support offline CPUs and hot swapping
+   this->super.existingCPUs = this->super.activeCPUs;
    ProcessList_getHostInfo(&this->host_info);
    ProcessList_allocateCPULoadInfo(&this->curr_load);
 
@@ -179,11 +142,13 @@ void ProcessList_goThroughEntries(ProcessList* super, bool pauseProcessUpdate) {
 
    /* Get the time difference */
    dpl->global_diff = 0;
-   for (int i = 0; i < dpl->super.cpuCount; ++i) {
+   for (unsigned int i = 0; i < dpl->super.existingCPUs; ++i) {
       for (size_t j = 0; j < CPU_STATE_MAX; ++j) {
          dpl->global_diff += dpl->curr_load[i].cpu_ticks[j] - dpl->prev_load[i].cpu_ticks[j];
       }
    }
+
+   const double time_interval_ns = Platform_schedulerTicksToNanoseconds(dpl->global_diff) / (double) dpl->super.activeCPUs;
 
    /* Clear the thread counts */
    super->kernelThreads = 0;
@@ -204,10 +169,15 @@ void ProcessList_goThroughEntries(ProcessList* super, bool pauseProcessUpdate) {
       proc = (DarwinProcess*)ProcessList_getProcess(super, ps[i].kp_proc.p_pid, &preExisting, DarwinProcess_new);
 
       DarwinProcess_setFromKInfoProc(&proc->super, &ps[i], preExisting);
-      DarwinProcess_setFromLibprocPidinfo(proc, dpl);
+      DarwinProcess_setFromLibprocPidinfo(proc, dpl, time_interval_ns);
+
+      if (proc->super.st_uid != ps[i].kp_eproc.e_ucred.cr_uid) {
+         proc->super.st_uid = ps[i].kp_eproc.e_ucred.cr_uid;
+         proc->super.user = UsersTable_getRef(super->usersTable, proc->super.st_uid);
+      }
 
       // Disabled for High Sierra due to bug in macOS High Sierra
-      bool isScanThreadSupported  = ! ( CompareKernelVersion(17, 0, 0) >= 0 && CompareKernelVersion(17, 5, 0) < 0);
+      bool isScanThreadSupported  = !Platform_KernelVersionIsBetween((KernelVersion) {17, 0, 0}, (KernelVersion) {17, 5, 0});
 
       if (isScanThreadSupported) {
          DarwinProcess_scanThreads(proc);
@@ -216,11 +186,18 @@ void ProcessList_goThroughEntries(ProcessList* super, bool pauseProcessUpdate) {
       super->totalTasks += 1;
 
       if (!preExisting) {
-         proc->super.user = UsersTable_getRef(super->usersTable, proc->super.st_uid);
-
          ProcessList_add(super, &proc->super);
       }
    }
 
    free(ps);
+}
+
+bool ProcessList_isCPUonline(const ProcessList* super, unsigned int id) {
+   assert(id < super->existingCPUs);
+
+   // TODO: support offline CPUs and hot swapping
+   (void) super; (void) id;
+
+   return true;
 }

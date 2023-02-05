@@ -1,11 +1,13 @@
 /*
 htop - freebsd/Platform.c
 (C) 2014 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
-#include "Platform.h"
+#include "config.h" // IWYU pragma: keep
+
+#include "freebsd/Platform.h"
 
 #include <devstat.h>
 #include <math.h>
@@ -29,27 +31,34 @@ in the source distribution for its full text.
 #include "DateMeter.h"
 #include "DateTimeMeter.h"
 #include "DiskIOMeter.h"
-#include "FreeBSDProcess.h"
-#include "FreeBSDProcessList.h"
 #include "HostnameMeter.h"
 #include "LoadAverageMeter.h"
 #include "Macros.h"
 #include "MemoryMeter.h"
+#include "MemorySwapMeter.h"
 #include "Meter.h"
 #include "NetworkIOMeter.h"
 #include "ProcessList.h"
 #include "Settings.h"
 #include "SwapMeter.h"
+#include "SysArchMeter.h"
 #include "TasksMeter.h"
 #include "UptimeMeter.h"
 #include "XUtils.h"
+#include "freebsd/FreeBSDProcess.h"
+#include "freebsd/FreeBSDProcessList.h"
 #include "zfs/ZfsArcMeter.h"
 #include "zfs/ZfsCompressedArcMeter.h"
 
+const ScreenDefaults Platform_defaultScreens[] = {
+   {
+      .name = "Main",
+      .columns = "PID USER PRIORITY NICE M_VIRT M_RESIDENT STATE PERCENT_CPU PERCENT_MEM TIME Command",
+      .sortKey = "PERCENT_CPU",
+   },
+};
 
-ProcessField Platform_defaultFields[] = { PID, USER, PRIORITY, NICE, M_VIRT, M_RESIDENT, STATE, PERCENT_CPU, PERCENT_MEM, TIME, COMM, 0 };
-
-int Platform_numberOfFields = LAST_PROCESSFIELD;
+const unsigned int Platform_numberOfDefaultScreens = ARRAYSIZE(Platform_defaultScreens);
 
 const SignalItem Platform_signals[] = {
    { .name = " 0 Cancel",    .number =  0 },
@@ -99,10 +108,12 @@ const MeterClass* const Platform_meterTypes[] = {
    &LoadMeter_class,
    &MemoryMeter_class,
    &SwapMeter_class,
+   &MemorySwapMeter_class,
    &TasksMeter_class,
    &UptimeMeter_class,
    &BatteryMeter_class,
    &HostnameMeter_class,
+   &SysArchMeter_class,
    &AllCPUsMeter_class,
    &AllCPUs2Meter_class,
    &AllCPUs4Meter_class,
@@ -123,8 +134,9 @@ const MeterClass* const Platform_meterTypes[] = {
    NULL
 };
 
-void Platform_init(void) {
+bool Platform_init(void) {
    /* no platform-specific setup needed */
+   return true;
 }
 
 void Platform_done(void) {
@@ -136,9 +148,9 @@ void Platform_setBindings(Htop_Action* keys) {
    (void) keys;
 }
 
-int Platform_getUptime() {
+int Platform_getUptime(void) {
    struct timeval bootTime, currTime;
-   int mib[2] = { CTL_KERN, KERN_BOOTTIME };
+   const int mib[2] = { CTL_KERN, KERN_BOOTTIME };
    size_t size = sizeof(bootTime);
 
    int err = sysctl(mib, 2, &bootTime, &size, NULL, 0);
@@ -152,7 +164,7 @@ int Platform_getUptime() {
 
 void Platform_getLoadAverage(double* one, double* five, double* fifteen) {
    struct loadavg loadAverage;
-   int mib[2] = { CTL_VM, VM_LOADAVG };
+   const int mib[2] = { CTL_VM, VM_LOADAVG };
    size_t size = sizeof(loadAverage);
 
    int err = sysctl(mib, 2, &loadAverage, &size, NULL, 0);
@@ -167,7 +179,7 @@ void Platform_getLoadAverage(double* one, double* five, double* fifteen) {
    *fifteen = (double) loadAverage.ldavg[2] / loadAverage.fscale;
 }
 
-int Platform_getMaxPid() {
+int Platform_getMaxPid(void) {
    int maxPid;
    size_t size = sizeof(maxPid);
    int err = sysctlbyname("kern.pid_max", &maxPid, &size, NULL, 0);
@@ -177,9 +189,9 @@ int Platform_getMaxPid() {
    return maxPid;
 }
 
-double Platform_setCPUValues(Meter* this, int cpu) {
+double Platform_setCPUValues(Meter* this, unsigned int cpu) {
    const FreeBSDProcessList* fpl = (const FreeBSDProcessList*) this->pl;
-   int cpus = this->pl->cpuCount;
+   unsigned int cpus = this->pl->activeCPUs;
    const CPUData* cpuData;
 
    if (cpus == 1) {
@@ -207,26 +219,39 @@ double Platform_setCPUValues(Meter* this, int cpu) {
 
    percent = CLAMP(percent, 0.0, 100.0);
 
-   v[CPU_METER_FREQUENCY] = NAN;
-   v[CPU_METER_TEMPERATURE] = NAN;
+   v[CPU_METER_FREQUENCY] = cpuData->frequency;
+   v[CPU_METER_TEMPERATURE] = cpuData->temperature;
 
    return percent;
 }
 
 void Platform_setMemoryValues(Meter* this) {
-   // TODO
    const ProcessList* pl = this->pl;
+   const FreeBSDProcessList* fpl = (const FreeBSDProcessList*) pl;
 
    this->total = pl->totalMem;
-   this->values[0] = pl->usedMem;
-   this->values[1] = pl->buffersMem;
-   this->values[2] = pl->cachedMem;
+   this->values[MEMORY_METER_USED] = pl->usedMem;
+   this->values[MEMORY_METER_BUFFERS] = pl->buffersMem;
+   this->values[MEMORY_METER_SHARED] = pl->sharedMem;
+   this->values[MEMORY_METER_CACHE] = pl->cachedMem;
+   // this->values[MEMORY_METER_AVAILABLE] = "available memory"
+
+   if (fpl->zfs.enabled) {
+      // ZFS does not shrink below the value of zfs_arc_min.
+      unsigned long long int shrinkableSize = 0;
+      if (fpl->zfs.size > fpl->zfs.min)
+         shrinkableSize = fpl->zfs.size - fpl->zfs.min;
+      this->values[MEMORY_METER_USED] -= shrinkableSize;
+      this->values[MEMORY_METER_CACHE] += shrinkableSize;
+      // this->values[MEMORY_METER_AVAILABLE] += shrinkableSize;
+   }
 }
 
 void Platform_setSwapValues(Meter* this) {
    const ProcessList* pl = this->pl;
    this->total = pl->totalSwap;
-   this->values[0] = pl->usedSwap;
+   this->values[SWAP_METER_USED] = pl->usedSwap;
+   this->values[SWAP_METER_CACHE] = NAN;
 }
 
 void Platform_setZfsArcValues(Meter* this) {
@@ -242,7 +267,7 @@ void Platform_setZfsCompressedArcValues(Meter* this) {
 }
 
 char* Platform_getProcessEnv(pid_t pid) {
-   int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ENV, pid };
+   const int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ENV, pid };
 
    size_t capacity = ARG_MAX;
    char* env = xMalloc(capacity);
@@ -262,15 +287,9 @@ char* Platform_getProcessEnv(pid_t pid) {
    return env;
 }
 
-char* Platform_getInodeFilename(pid_t pid, ino_t inode) {
-    (void)pid;
-    (void)inode;
-    return NULL;
-}
-
 FileLocks_ProcessData* Platform_getProcessLocks(pid_t pid) {
-    (void)pid;
-    return NULL;
+   (void)pid;
+   return NULL;
 }
 
 bool Platform_getDiskIO(DiskIOData* data) {
@@ -278,7 +297,8 @@ bool Platform_getDiskIO(DiskIOData* data) {
    if (devstat_checkversion(NULL) < 0)
       return false;
 
-   struct devinfo info = { 0 };
+   // use static to plug memory leak; see #841
+   static struct devinfo info = { 0 };
    struct statinfo current = { .dinfo = &info };
 
    // get number of devices
@@ -287,7 +307,7 @@ bool Platform_getDiskIO(DiskIOData* data) {
 
    int count = current.dinfo->numdevs;
 
-   unsigned long int bytesReadSum = 0, bytesWriteSum = 0, timeSpendSum = 0;
+   unsigned long long int bytesReadSum = 0, bytesWriteSum = 0, timeSpendSum = 0;
 
    // get data
    for (int i = 0; i < count; i++) {
@@ -313,24 +333,17 @@ bool Platform_getDiskIO(DiskIOData* data) {
    return true;
 }
 
-bool Platform_getNetworkIO(unsigned long int* bytesReceived,
-                           unsigned long int* packetsReceived,
-                           unsigned long int* bytesTransmitted,
-                           unsigned long int* packetsTransmitted) {
-   int r;
-
+bool Platform_getNetworkIO(NetworkIOData* data) {
    // get number of interfaces
    int count;
    size_t countLen = sizeof(count);
    const int countMib[] = { CTL_NET, PF_LINK, NETLINK_GENERIC, IFMIB_SYSTEM, IFMIB_IFCOUNT };
 
-   r = sysctl(countMib, ARRAYSIZE(countMib), &count, &countLen, NULL, 0);
+   int r = sysctl(countMib, ARRAYSIZE(countMib), &count, &countLen, NULL, 0);
    if (r < 0)
       return false;
 
-
-   unsigned long int bytesReceivedSum = 0, packetsReceivedSum = 0, bytesTransmittedSum = 0, packetsTransmittedSum = 0;
-
+   memset(data, 0, sizeof(NetworkIOData));
    for (int i = 1; i <= count; i++) {
       struct ifmibdata ifmd;
       size_t ifmdLen = sizeof(ifmd);
@@ -344,16 +357,12 @@ bool Platform_getNetworkIO(unsigned long int* bytesReceived,
       if (ifmd.ifmd_flags & IFF_LOOPBACK)
          continue;
 
-      bytesReceivedSum += ifmd.ifmd_data.ifi_ibytes;
-      packetsReceivedSum += ifmd.ifmd_data.ifi_ipackets;
-      bytesTransmittedSum += ifmd.ifmd_data.ifi_obytes;
-      packetsTransmittedSum += ifmd.ifmd_data.ifi_opackets;
+      data->bytesReceived += ifmd.ifmd_data.ifi_ibytes;
+      data->packetsReceived += ifmd.ifmd_data.ifi_ipackets;
+      data->bytesTransmitted += ifmd.ifmd_data.ifi_obytes;
+      data->packetsTransmitted += ifmd.ifmd_data.ifi_opackets;
    }
 
-   *bytesReceived = bytesReceivedSum;
-   *packetsReceived = packetsReceivedSum;
-   *bytesTransmitted = bytesTransmittedSum;
-   *packetsTransmitted = packetsTransmittedSum;
    return true;
 }
 

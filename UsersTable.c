@@ -1,7 +1,7 @@
 /*
 htop - UsersTable.c
 (C) 2004-2011 Hisham H. Muhammad
-Released under the GNU GPLv2, see the COPYING file
+Released under the GNU GPLv2+, see the COPYING file
 in the source distribution for its full text.
 */
 
@@ -17,7 +17,7 @@ in the source distribution for its full text.
 #include "XUtils.h"
 
 
-UsersTable* UsersTable_new() {
+UsersTable* UsersTable_new(void) {
    UsersTable* this;
    this = xMalloc(sizeof(UsersTable));
    this->users = Hashtable_new(10, true);
