@@ -1,3 +1,9 @@
+htop (3.2.2-2) unstable; urgency=medium
+
+  * Remove LXC special handling for CPUs
+
+ -- Daniel Lange <DLange@debian.org>  Sun, 26 Feb 2023 12:50:00 +0100
+
 htop (3.2.2-1) unstable; urgency=medium
 
   * Import upstream 3.2.2 release
