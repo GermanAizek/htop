@@ -1,3 +1,96 @@
+What's new in version 3.3.0
+
+* Multiple refactorings and code improvements
+* Shorten docker container IDs to 12 characters
+* Settings: preserve empty header
+* Fix execlp() argument without pointer cast
+* OpenFilesScreen: Make column sizing dynamic for file size, offset and inode
+* Add support for "truss" (FreeBSD equivalent of "strace")
+* Darwin: add NetworkIOMeter support
+* HeaderLayout: add "3 columns - 40/30/30", "... 30/40/30" & "... 30/30/40"
+* Meter: use correct unicode characters for digit '9'
+* Note in manual re default memory units of KiB
+* Add column for process container name
+* Add logic to filter the container name (+type) from the CGroup name
+* Change NetworkIOMeter value unit from KiB/s to bytes/second
+* Cap DiskIOMeter "utilisation" percentage at 100%
+* PCP platform implementation of frontswap and zswap accounting
+* Shorten podman/libpod container IDs to 12 characters
+* Write configuration to temporary file first
+* Incorporate shared memory in bar text
+* Move shared memory next to used memory
+* Correct order of memory meter in help
+* Add recalculate to Ctrl-L refresh
+* Update process list on thread visibility toggling
+* Support dynamic screens with 'top-most' entities beyond processes
+* Introduce Row and Table classes for screens beyond top-processes
+* Rework ZramMeter and remove MeterClass.comprisedValues
+* More robust logic for CPU process percentages (Linux & PCP)
+* Show year as start time for processes older than a year
+* Short-term fix for docker container detection
+* default color preset: use bold blue for better visibility
+* Document 'O' keyboard shortcut
+* Implement logic for '--max-iterations'
+* Update F5 key label on tab switch (Tree <-> List)
+* Force re-sorting of the process list view after switching between list/treeview mode
+* Linux: (hack) work around the fact that Zswapped pages may be SwapCached
+* Linux: implement zswap support
+* {Memory,Swap}Meter: add "compressed memory" metrics
+* Darwin: add DiskIOMeter support
+* Fix scroll relative to followed process
+* ZramMeter: update bar mode
+* Use shared real memory on FreeBSD
+* Increase Search and Filter max string length to 128
+* Improve CPU computation code
+* Remove LXC special handling for the CPU count
+* Create new File Descriptor meter
+* PCP: add IRQ PSI meter
+* Linux: add IRQ PSI meter
+* Linux: highlight username if process has elevated privileges
+* Add support for scheduling policies
+* Add a systemd user meter to monitor user units.
+* FreeBSD: remove duplicate zfs ARC size subtraction
+
+What's new in version 3.2.2
+
+* CPUMeter now can show frequency in text mode
+* Add option to render distribution path prefixes shadowed
+* DiskIOMeter converts to bytes per second (not per interval)
+* DiskIOMeter uses complete units, including missing "iB/s"
+* DiskIOMeter indicates read and write in meter mode
+* NetworkIOMeter converts to packets per second, shows packet rate
+* Allow continued process following when changing display settings
+* Update the panel header when changing to another tab
+* Drop margin around the header if there are no meters
+* Use Unicode replacement character for non-printable characters
+* Default color preset uses bold blue for better visibility
+* Update the Panel header on sort order inversions ('I')
+* Toggle the header meters with pound key
+* Fix ScreenPanel to handle quitting the panel while renaming
+* Add fallback for HOME environment variable using passwd database
+* Replace meaningless ID column with FD column in lock screen
+* Use device format in the lock screen matching the files screen
+* On Linux, improvements to file-descriptor lock detection
+* On Linux, further distinguish systemd states in the SystemdMeter
+* On Linux, improvements to cgroup and container identification
+* On Linux, support openat(2) without readlinkat(2) platforms
+* On Darwin, fix current process buffer handling for busy systems
+* On DragonFly BSD, fix incorrect processor time of processes
+* On FreeBSD, fix an issue with the memory graph not showing correctly
+* On FreeBSD, add support for displaying shared memory usage
+* On PCP, use pmLookupDescs(3) if available for efficiency
+* On PCP, normalize generic columns values for consistent display
+* On PCP, changes preparing for configurable, dynamic screens
+* Handle invalid process columns from the configuration file
+* Avoid undefined behaviour with deeply nested processes
+* Fix crash when removing the currently active screen
+* Prevent possible crash on a very early error path
+* Include automake for Debian/Ubuntu
+* Restore non-mouse support
+* Reject unsupported command line arguments
+* Document idle process state
+* Clarify M_TRS/M_DRS columns
+
 What's new in version 3.2.1
 
 * Fix setting to show all branches collapsed by default
@@ -13,7 +106,7 @@ What's new in version 3.2.1
 * On Solaris, fix the build
 * On NetBSD, OpenBSD and Solaris ensure env buffer size is sufficient
 * On Linux, resolve processes exiting interfering with sampling
-* Fix ProcessList quadratic removal when scanning processes
+* Fix ProcessTable quadratic removal when scanning processes
 * Under LXC, limit CPU count to that given by /proc/cpuinfo
 * Improve container detection for LXC
 * Some minor documentation fixes

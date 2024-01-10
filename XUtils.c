@@ -12,6 +12,7 @@ in the source distribution for its full text.
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -19,9 +20,10 @@ in the source distribution for its full text.
 #include <unistd.h>
 
 #include "CRT.h"
+#include "Macros.h"
 
 
-void fail() {
+void fail(void) {
    CRT_done();
    abort();
 
@@ -104,9 +106,9 @@ inline bool String_contains_i(const char* s1, const char* s2, bool multi) {
             String_freeArray(needles);
             return true;
          }
-       }
-       String_freeArray(needles);
-       return false;
+      }
+      String_freeArray(needles);
+      return false;
    } else {
       return strcasestr(s1, s2) != NULL;
    }
@@ -265,6 +267,7 @@ char* xStrndup(const char* str, size_t len) {
    return data;
 }
 
+ATTR_ACCESS3_W(2, 3)
 static ssize_t readfd_internal(int fd, void* buffer, size_t count) {
    if (!count) {
       close(fd);
@@ -281,10 +284,13 @@ static ssize_t readfd_internal(int fd, void* buffer, size_t count) {
             continue;
 
          close(fd);
+         *((char*)buffer) = '\0';
          return -errno;
       }
 
       if (res > 0) {
+         assert((size_t)res <= count);
+
          buffer = ((char*)buffer) + res;
          count -= (size_t)res;
          alreadyRead += res;
@@ -312,4 +318,49 @@ ssize_t xReadfileat(openat_arg_t dirfd, const char* pathname, void* buffer, size
       return -errno;
 
    return readfd_internal(fd, buffer, count);
+}
+
+ssize_t full_write(int fd, const void* buf, size_t count) {
+   ssize_t written = 0;
+
+   while (count > 0) {
+      ssize_t r = write(fd, buf, count);
+      if (r < 0) {
+         if (errno == EINTR)
+            continue;
+
+         return r;
+      }
+
+      if (r == 0)
+         break;
+
+      written += r;
+      buf = (const unsigned char*)buf + r;
+      count -= (size_t)r;
+   }
+
+   return written;
+}
+
+/* Compares floating point values for ordering data entries. In this function,
+   NaN is considered "less than" any other floating point value (regardless of
+   sign), and two NaNs are considered "equal" regardless of payload. */
+int compareRealNumbers(double a, double b) {
+   int result = isgreater(a, b) - isgreater(b, a);
+   if (result)
+      return result;
+   return !isNaN(a) - !isNaN(b);
+}
+
+/* Computes the sum of all positive floating point values in an array.
+   NaN values in the array are skipped. The returned sum will always be
+   nonnegative. */
+double sumPositiveValues(const double* array, size_t count) {
+   double sum = 0.0;
+   for (size_t i = 0; i < count; i++) {
+      if (isPositive(array[i]))
+         sum += array[i];
+   }
+   return sum;
 }
