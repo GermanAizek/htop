@@ -1,3 +1,9 @@
+htop (3.3.0-2) unstable; urgency=medium
+
+  * Apply upstream fix for number of running tasks show as zero
+
+ -- Daniel Lange <DLange@debian.org>  Fri, 12 Jan 2024 11:26:00 +0100
+
 htop (3.3.0-1) unstable; urgency=medium
 
   * Import upstream 3.3.0 release
