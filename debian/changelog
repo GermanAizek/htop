@@ -1,3 +1,10 @@
+htop (3.3.0-3) unstable; urgency=medium
+
+  * Apply upstream fix for broken tree mode sorting
+  * Apply upstream fix for missing sort direction arrow update on mouse click
+
+ -- Daniel Lange <DLange@debian.org>  Wed, 17 Jan 2024 10:28:00 +0100
+
 htop (3.3.0-2) unstable; urgency=medium
 
   * Apply upstream fix for number of running tasks show as zero
