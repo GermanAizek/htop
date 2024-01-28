@@ -1,3 +1,10 @@
+htop (3.3.0-4) unstable; urgency=medium
+
+  * Apply upstream fix for broken Kernel Thread names when
+    the "Show Program Path" setting was disabled
+
+ -- Daniel Lange <DLange@debian.org>  Sun, 28 Jan 2024 17:08:00 +0100
+
 htop (3.3.0-3) unstable; urgency=medium
 
   * Apply upstream fix for broken tree mode sorting
