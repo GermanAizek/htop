@@ -9,12 +9,11 @@ Build-Depends: debhelper-compat (= 13),
                libdevstat-dev [kfreebsd-any],
                libhwloc-dev [!linux-any],
                libkvm-dev [kfreebsd-any],
-               libncurses5-dev,
-               libncursesw5-dev,
+               libncurses-dev,
                libnl-3-dev [linux-any],
                libnl-genl-3-dev [linux-any],
                libsensors-dev [!hurd-any],
-               pkg-config
+               pkgconf
 Standards-Version: 4.7.1
 Rules-Requires-Root: no
 Homepage: https://htop.dev/
