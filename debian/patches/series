@@ -1,5 +1,0 @@
-001_fix_number_of_running_tasks.patch
-002_fix_tree_mode_sorting.patch
-003_fix_column_header_update.patch
-004_fix_ktread_display.patch
-005_fix_buffer_oob_on_stat_file_reading.patch
