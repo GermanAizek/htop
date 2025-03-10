@@ -30,9 +30,8 @@ in the source distribution for its full text.
 
 
 static PCPDynamicMetric* PCPDynamicMeter_lookupMetric(PCPDynamicMeters* meters, PCPDynamicMeter* meter, const char* name) {
-   size_t bytes = 16 + strlen(meter->super.name) + strlen(name);
-   char* metricName = xMalloc(bytes);
-   xSnprintf(metricName, bytes, "htop.meter.%s.%s", meter->super.name, name);
+   char* metricName = NULL;
+   xAsprintf(&metricName, "htop.meter.%s.%s", meter->super.name, name);
 
    PCPDynamicMetric* metric;
    for (size_t i = 0; i < meter->totalMetrics; i++) {
@@ -273,7 +272,7 @@ void PCPDynamicMeters_init(PCPDynamicMeters* meters) {
    if (xdgConfigHome)
       path = String_cat(xdgConfigHome, "/htop/meters/");
    else if (home)
-      path = String_cat(home, "/.config/htop/meters/");
+      path = String_cat(home, CONFIGDIR "/htop/meters/");
    else
       path = NULL;
    if (path) {
