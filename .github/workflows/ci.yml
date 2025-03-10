@@ -31,16 +31,16 @@ jobs:
   build-ubuntu-latest-minimal-clang:
     runs-on: ubuntu-latest
     env:
-      CC: clang-16
+      CC: clang-18
     steps:
     - uses: actions/checkout@v4
     - name: install clang repo
       run: |
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-16 main' -y
+        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main' -y
         sudo apt-get update -q
     - name: Install Dependencies
-      run: sudo apt-get install --no-install-recommends clang-16 libncursesw5-dev
+      run: sudo apt-get install --no-install-recommends clang-18 libncursesw5-dev
     - name: Bootstrap
       run: ./autogen.sh
     - name: Configure
@@ -59,7 +59,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Dependencies
-      run: sudo apt-get install --no-install-recommends libncursesw5-dev libhwloc-dev libnl-3-dev libnl-genl-3-dev libsensors4-dev libcap-dev
+      run: sudo apt-get install --no-install-recommends libncursesw5-dev libhwloc-dev libnl-3-dev libnl-genl-3-dev libsensors-dev libcap-dev
     - name: Bootstrap
       run: ./autogen.sh
     - name: Configure
@@ -72,16 +72,16 @@ jobs:
   build-ubuntu-latest-full-featured-clang:
     runs-on: ubuntu-latest
     env:
-      CC: clang-16
+      CC: clang-18
     steps:
     - uses: actions/checkout@v4
     - name: install clang repo
       run: |
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-16 main' -y
+        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main' -y
         sudo apt-get update -q
     - name: Install Dependencies
-      run: sudo apt-get install --no-install-recommends clang-16 libncursesw5-dev libhwloc-dev libnl-3-dev libnl-genl-3-dev libsensors4-dev libcap-dev
+      run: sudo apt-get install --no-install-recommends clang-18 libncursesw5-dev libhwloc-dev libnl-3-dev libnl-genl-3-dev libsensors-dev libcap-dev
     - name: Bootstrap
       run: ./autogen.sh
     - name: Configure
@@ -100,7 +100,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Install Dependencies
-      run: sudo apt-get install --no-install-recommends libncursesw5-dev libtinfo-dev libgpm-dev libsensors4-dev libcap-dev
+      run: sudo apt-get install --no-install-recommends libncursesw5-dev libtinfo-dev libgpm-dev libsensors-dev libcap-dev
     - name: Bootstrap
       run: ./autogen.sh
     - name: Configure
@@ -124,30 +124,44 @@ jobs:
     - name: Build
       run: make -k
 
+  build-unsupported-latest-gcc:
+    # build as if we were on an unsupported platform
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Dependencies
+      run: sudo apt-get install --no-install-recommends libncursesw5-dev libtinfo-dev libgpm-dev
+    - name: Bootstrap
+      run: ./autogen.sh
+    - name: Configure
+      run: ./configure --host=`uname -m`-none --enable-werror --enable-unicode || ( cat config.log; exit 1; )
+    - name: Build
+      run: make -k
+
   build-ubuntu-latest-clang-analyzer:
     runs-on: ubuntu-latest
     env:
-      CC: clang-16
+      CC: clang-18
     steps:
     - uses: actions/checkout@v4
     - name: install clang repo
       run: |
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-16 main' -y
+        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main' -y
         sudo apt-get update -q
     - name: Install Dependencies
-      run: sudo apt-get install --no-install-recommends clang-16 clang-tools-16 libncursesw5-dev libnl-3-dev libnl-genl-3-dev libsensors4-dev libcap-dev
+      run: sudo apt-get install --no-install-recommends clang-18 clang-tools-18 libncursesw5-dev libnl-3-dev libnl-genl-3-dev libsensors-dev libcap-dev
     - name: Bootstrap
       run: ./autogen.sh
     - name: Configure
-      run: scan-build-16 -analyze-headers --status-bugs ./configure --enable-debug --enable-werror --enable-openvz --enable-vserver --enable-ancient-vserver --enable-unicode --enable-delayacct --enable-sensors --enable-capabilities || ( cat config.log; exit 1; )
+      run: scan-build-18 -analyze-headers --status-bugs ./configure --enable-debug --enable-werror --enable-openvz --enable-vserver --enable-ancient-vserver --enable-unicode --enable-delayacct --enable-sensors --enable-capabilities || ( cat config.log; exit 1; )
     - name: Build
-      run: scan-build-16 -analyze-headers --status-bugs make -j"$(nproc)"
+      run: scan-build-18 -analyze-headers --status-bugs make -j"$(nproc)"
 
   build-ubuntu-latest-clang-sanitizer:
     runs-on: ubuntu-latest
     env:
-      CC: clang-16
+      CC: clang-18
       CFLAGS: '-O1 -g -ftrivial-auto-var-init=pattern -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-address-use-after-return=always -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=nullability -fsanitize=implicit-conversion -fsanitize=integer -fsanitize=float-divide-by-zero -fsanitize=local-bounds'
       LDFLAGS: '-ftrivial-auto-var-init=pattern -fsanitize=address -fsanitize-address-use-after-scope -fsanitize-address-use-after-return=always -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=nullability -fsanitize=implicit-conversion -fsanitize=integer -fsanitize=float-divide-by-zero -fsanitize=local-bounds'
       ASAN_OPTIONS: strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
@@ -159,12 +173,12 @@ jobs:
     - name: install clang repo
       run: |
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key 2>/dev/null | sudo apt-key add -
-        sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-16 main' -y
+        sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main' -y
         sudo apt-get update -q
     - name: Install LLVM Toolchain
-      run: sudo apt-get install --no-install-recommends clang-16 libclang-rt-16-dev llvm-16
+      run: sudo apt-get install --no-install-recommends clang-18 libclang-rt-18-dev llvm-18
     - name: Install Dependencies
-      run: sudo apt-get install --no-install-recommends libncursesw5-dev libhwloc-dev libnl-3-dev libnl-genl-3-dev libsensors4-dev libcap-dev
+      run: sudo apt-get install --no-install-recommends libncursesw5-dev libhwloc-dev libnl-3-dev libnl-genl-3-dev libsensors-dev libcap-dev
     - name: Bootstrap
       run: ./autogen.sh
     - name: Configure
@@ -197,9 +211,141 @@ jobs:
     - name: Distcheck
       run: make distcheck DISTCHECK_CONFIGURE_FLAGS="--enable-werror"
 
-  whitespace_check:
+  build-dragonflybsd-latest-gcc:
+      runs-on: ubuntu-22.04
+      timeout-minutes: 20
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            submodules: recursive
+        - name: Compile
+          uses: vmactions/dragonflybsd-vm@v1
+          with:
+            release: '6.4.0'
+            usesh: true
+            prepare: |
+              pkg install -y gmake autoconf automake ncurses git
+              git config --global --add safe.directory /home/runner/work/htop/htop
+            run: |
+              set -e
+              export LDFLAGS="-L/usr/local/lib"
+              export CFLAGS="-I/usr/local/include"
+              ./autogen.sh
+              ./configure --enable-unicode --enable-werror
+              gmake -k
+
+  build-freebsd-latest-clang:
+      runs-on: ubuntu-22.04
+      timeout-minutes: 20
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            submodules: recursive
+        - name: Compile
+          uses: vmactions/freebsd-vm@v1
+          with:
+            release: '14.2'
+            usesh: true
+            prepare: |
+              pkg install -y gmake autoconf automake pkgconf git
+              git config --global --add safe.directory /home/runner/work/htop/htop
+            run: |
+              set -e
+              ./autogen.sh
+              ./configure --enable-unicode --enable-werror
+              gmake -k
+
+  build-netbsd-latest-gcc:
+      runs-on: ubuntu-22.04
+      timeout-minutes: 20
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            submodules: recursive
+        - name: Compile
+          uses: vmactions/netbsd-vm@v1
+          with:
+            release: '10.1'
+            usesh: true
+            prepare: |
+              PATH="/usr/pkg/sbin:/usr/pkg/bin:$PATH"
+              PKG_PATH="https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/amd64/10.1/All/"
+              export PATH PKG_PATH
+              /usr/sbin/pkg_add pkgin
+              pkgin -y install autoconf automake libtool ncurses pkg-config gmake git
+              git config --global --add safe.directory /home/runner/work/htop/htop
+            run: |
+              set -e
+              ./autogen.sh
+              ./configure --enable-unicode --enable-werror
+              gmake -k
+
+  build-openbsd-latest-clang:
+      runs-on: ubuntu-22.04
+      timeout-minutes: 20
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            submodules: recursive
+        - name: Compile
+          uses: vmactions/openbsd-vm@v1
+          with:
+            release: '7.6'
+            usesh: true
+            prepare: |
+              pkg_add gmake git
+              git config --global --add safe.directory /home/runner/work/htop/htop
+            run: |
+              set -e
+              autoconf_version_full=$(pkg_info -Q autoconf |
+                LC_ALL=C sed 's/^autoconf-\([0-9]*\.[0-9]*\)\(p[.0-9]*\)\{0,1\}$/\1\2/p; d' |
+                LC_ALL=C sort -n -r -t . -k 1,1 -k 2,2 |
+                sed '1 q')
+              automake_version_full=$(pkg_info -Q automake |
+                LC_ALL=C sed 's/^automake-\([0-9]*\.[0-9]*\)\(\.[0-9]*\)\{0,1\}\(p[0-9]*\)\{0,1\}$/\1\2\3/p; d' |
+                LC_ALL=C sort -n -r -t . -k 1,1 -k 2,2 -k 3,3 |
+                sed '1 q')
+              pkg_add -v autoconf-${autoconf_version_full} automake-${automake_version_full}
+              export AUTOCONF_VERSION=$(echo ${autoconf_version_full} |
+                LC_ALL=C sed 's/^\([0-9]*\.[0-9]*\).*$/\1/')
+              # Must not include the third version field in $AUTOMAKE_VERSION
+              export AUTOMAKE_VERSION=$(echo ${automake_version_full} |
+                LC_ALL=C sed 's/^\([0-9]*\.[0-9]*\).*$/\1/')
+              ./autogen.sh
+              ./configure --enable-unicode --enable-werror
+              gmake -k
+
+  build-solaris-latest-gcc:
+      runs-on: ubuntu-22.04
+      timeout-minutes: 20
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            submodules: recursive
+        - name: Compile
+          uses: vmactions/solaris-vm@v1
+          with:
+            release: '11.4'
+            usesh: true
+            prepare: |
+              pkg install gnu-make autoconf automake ncurses git gcc
+              git config --global --add safe.directory /home/runner/work/htop/htop
+            run: |
+              set -e
+              ./autogen.sh
+              ./configure --enable-unicode --enable-werror
+              gmake -k
+
+  lint-whitespace:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: check-whitespaces
         run: git diff-tree --check $(git hash-object -t tree /dev/null) HEAD
+
+  lint-pcp-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: check-pcp-style
+        run: ./check-pcp-style.sh

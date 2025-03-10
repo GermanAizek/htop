@@ -81,7 +81,6 @@ const unsigned int Platform_numberOfSignals = ARRAYSIZE(Platform_signals);
 
 const MeterClass* const Platform_meterTypes[] = {
    &CPUMeter_class,
-   &DynamicMeter_class,
    &ClockMeter_class,
    &DateMeter_class,
    &DateTimeMeter_class,
@@ -106,7 +105,6 @@ const MeterClass* const Platform_meterTypes[] = {
    &RightCPUs4Meter_class,
    &LeftCPUs8Meter_class,
    &RightCPUs8Meter_class,
-   &BlankMeter_class,
    &PressureStallCPUSomeMeter_class,
    &PressureStallIOSomeMeter_class,
    &PressureStallIOFullMeter_class,
@@ -120,6 +118,8 @@ const MeterClass* const Platform_meterTypes[] = {
    &NetworkIOMeter_class,
    &SysArchMeter_class,
    &FileDescriptorMeter_class,
+   &BlankMeter_class,
+   &DynamicMeter_class,
    NULL
 };
 
@@ -127,6 +127,7 @@ static const char* Platform_metricNames[] = {
    [PCP_CONTROL_THREADS] = "proc.control.perclient.threads",
 
    [PCP_HINV_NCPU] = "hinv.ncpu",
+   [PCP_HINV_NDISK] = "hinv.ndisk",
    [PCP_HINV_CPUCLOCK] = "hinv.cpu.clock",
    [PCP_UNAME_SYSNAME] = "kernel.uname.sysname",
    [PCP_UNAME_RELEASE] = "kernel.uname.release",
@@ -385,6 +386,7 @@ bool Platform_init(void) {
    Metric_enable(PCP_PID_MAX, true);
    Metric_enable(PCP_BOOTTIME, true);
    Metric_enable(PCP_HINV_NCPU, true);
+   Metric_enable(PCP_HINV_NDISK, true);
    Metric_enable(PCP_PERCPU_SYSTEM, true);
    Metric_enable(PCP_UNAME_SYSNAME, true);
    Metric_enable(PCP_UNAME_RELEASE, true);
@@ -480,7 +482,7 @@ pid_t Platform_getMaxPid(void) {
 
    pmAtomValue value;
    if (Metric_values(PCP_PID_MAX, &value, 1, PM_TYPE_32) == NULL)
-      return UINT_MAX;
+      return INT_MAX;
    pcp->pidmax = value.l;
    return pcp->pidmax;
 }
@@ -753,6 +755,8 @@ bool Platform_getDiskIO(DiskIOData* data) {
       data->totalBytesWritten = value.ull;
    if (Metric_values(PCP_DISK_ACTIVE, &value, 1, PM_TYPE_U64) != NULL)
       data->totalMsTimeSpend = value.ull;
+   if (Metric_values(PCP_HINV_NDISK, &value, 1, PM_TYPE_U64) != NULL)
+      data->numDisks = value.ull;
    return true;
 }
 
