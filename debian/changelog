@@ -1,3 +1,10 @@
+htop (3.4.0-2) unstable; urgency=medium
+
+  * Add dh-sequence-single-binary
+  * Fix htoprc autopkgtest for debci testbeds
+
+ -- Daniel Lange <DLange@debian.org>  Wed, 12 Mar 2025 08:52:01 +0100
+
 htop (3.4.0-1) unstable; urgency=medium
 
   * Import upstream 3.4.0 release
