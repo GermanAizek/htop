@@ -1,0 +1,23 @@
+From 42da2546233039d664e6ec557e4c98fd14b1b8d5 Mon Sep 17 00:00:00 2001
+From: Christian Hesse <mail@eworm.de>
+Date: Thu, 27 Mar 2025 09:01:50 +0100
+Subject: [PATCH] man: document the --user work for self...
+
+... when omitting the username.
+---
+ htop.1.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+--- a/htop.1.in
++++ b/htop.1.in
+@@ -64,8 +64,8 @@ Sort by this column (use \-\-sort\-key h
+ This will force a list view unless you specify -t at the same time.
+ Sorting in tree mode applies to the direct children of each process.
+ .TP
+-\fB\-u \-\-user=USERNAME|UID\fR
+-Show only the processes of a given user
++\fB\-u \-\-user[=USERNAME|UID]\fR
++Show only the processes of a given user, or self if omitted
+ .TP
+ \fB\-U \-\-no-unicode\fR
+ Do not use unicode but ASCII characters for graph meters
