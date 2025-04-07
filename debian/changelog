@@ -1,3 +1,10 @@
+htop (3.4.0-3) unstable; urgency=medium
+
+  * Improve documentation of the --user option
+  * rename an autopkgtest to keep lintian happy
+
+ -- Daniel Lange <DLange@debian.org>  Mon, 07 Apr 2025 18:37:00 +0200
+
 htop (3.4.0-2) unstable; urgency=medium
 
   * Add dh-sequence-single-binary
