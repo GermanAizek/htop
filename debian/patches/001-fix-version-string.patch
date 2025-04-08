@@ -1,3 +1,6 @@
+Subject: Fix the upstream version number
+From: Daniel Lange <DLange@debian.org>
+
 diff --git a/configure.ac b/configure.ac
 index b843aa7..29e1590 100644
 --- a/configure.ac
