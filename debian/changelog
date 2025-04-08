@@ -1,9 +1,10 @@
-htop (3.4.0-3) unstable; urgency=medium
+htop (3.4.0-5) unstable; urgency=medium
 
   * Improve documentation of the --user option
-  * rename an autopkgtest to keep lintian happy
+  * Rename an autopkgtest to keep lintian happy
+  * Make patch 001 DEP-3 compliant
 
- -- Daniel Lange <DLange@debian.org>  Mon, 07 Apr 2025 18:37:00 +0200
+ -- Daniel Lange <DLange@debian.org>  Tue, 08 Apr 2025 07:28:00 +0200
 
 htop (3.4.0-2) unstable; urgency=medium
 
