@@ -1,3 +1,10 @@
+htop (3.4.1-1) unstable; urgency=medium
+
+  * New upstream version 3.4.1
+  * Drop the two relevant upstream patches previously backported
+
+ -- Daniel Lange <DLange@debian.org>  Fri, 11 Apr 2025 15:12:00 +0200
+
 htop (3.4.0-5) unstable; urgency=medium
 
   * Improve documentation of the --user option
