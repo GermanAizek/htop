@@ -1,3 +1,9 @@
+htop (3.4.1-2) unstable; urgency=medium
+
+  * Prevent dangling README symlink
+
+ -- Daniel Lange <DLange@debian.org>  Fri, 11 Apr 2025 18:15:00 +0200
+
 htop (3.4.1-1) unstable; urgency=medium
 
   * New upstream version 3.4.1
