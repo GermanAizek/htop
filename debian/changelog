@@ -1,3 +1,9 @@
+htop (3.4.1-3) unstable; urgency=medium
+
+  * Fix left / right scroll while following a process (F key)
+
+ -- Daniel Lange <DLange@debian.org>  Mon, 14 Apr 2025 19:23:00 +0200
+
 htop (3.4.1-2) unstable; urgency=medium
 
   * Prevent dangling README symlink
