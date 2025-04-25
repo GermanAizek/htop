@@ -1,0 +1,25 @@
+From a7e31f0f2a6f521250aef7989501fdfc70b9138b Mon Sep 17 00:00:00 2001
+From: Daniel Lange <DLange@git.local>
+Date: Mon, 21 Apr 2025 18:48:26 +0200
+Subject: [PATCH] Make the physicalID default to 0 because old Intel processors
+ only have that
+
+... and libsensors doesn't tell
+Fixes #1680
+---
+ linux/LibSensors.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/linux/LibSensors.c b/linux/LibSensors.c
+index 6bf5b1c07..59edf23e8 100644
+--- a/linux/LibSensors.c
++++ b/linux/LibSensors.c
+@@ -235,7 +235,7 @@ void LibSensors_getCPUTemperatures(CPUData* cpus, unsigned int existingCPUs, uns
+ 
+       topPriority = priority;
+ 
+-      int physicalID = -1;
++      int physicalID = 0;
+ 
+       int m = 0;
+       for (const sensors_feature* feature = sym_sensors_get_features(chip, &m); feature; feature = sym_sensors_get_features(chip, &m)) {
